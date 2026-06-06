@@ -84,16 +84,17 @@ router.get('/meta/filters', protect, (_req, res) => {
 // Returns 4 buckets in one round-trip.
 router.get('/dashboard', protect, asyncHandler(async (req, res) => {
   const baseQuery = buildQuery(req, { forUser: req.user.role !== 'super_admin' || req.query.publishedOnly !== 'false' });
-  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+  const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
 
   const types = ['news', 'govt', 'competitor', 'evergreen'];
   const results = await Promise.all(
-    types.map((t) =>
-      Article.find({ ...baseQuery, type: t })
-        .sort({ fetchedAt: -1 })
-        .limit(limit)
-        .lean()
-    )
+    types.map((t) => {
+      const q = Article.find({ ...baseQuery, type: t }).sort({ fetchedAt: -1 });
+      if (limit && limit > 0) {
+        q.limit(limit);
+      }
+      return q.lean();
+    })
   );
 
   res.json({

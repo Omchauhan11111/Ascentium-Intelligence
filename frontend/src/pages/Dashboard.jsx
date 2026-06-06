@@ -62,7 +62,7 @@ export default function Dashboard() {
   const load = useCallback(async (f) => {
     setLoading(true);
     try {
-      const params = { limit: 1000};
+      const params = {};
       for (const [k, v] of Object.entries(f || {})) if (v) params[k] = v;
       const { data } = await api.get('/articles/dashboard', { params });
       setData(data);
