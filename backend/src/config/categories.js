@@ -1,103 +1,115 @@
 /**
  * ASCENTIUM SERVICES TAXONOMY
  * ---------------------------
- * Verified from https://www.ascentium.com (main navigation).
- *
- *  - 9 main categories (the "pillars")
- *  - 38 sub-categories
- *  - Each sub-category has search keywords used by the scraper / category matcher.
+ * 10 main categories aligned with actual imported data structure.
+ * Each sub-category has search keywords used by the scraper / category matcher.
  *
  * This is the single source of truth. Backend uses it for category-matching,
  * the frontend imports the same shape (via API) for filter dropdowns.
  */
 
 const CATEGORIES = {
-  'Corporate': {
-    keywords: ['corporate services', 'corporate secretarial', 'company registration', 'business entity'],
+  'Corporate Services': {
+    keywords: ['corporate services', 'corporate', 'company', 'incorporation', 'secretarial', 'entity', 'compliance'],
     subcategories: {
-      'Incorporation & Business Formation': ['incorporation', 'company formation', 'business formation', 'company registration', 'business registration', 'set up company', 'pte ltd', 'acra registration'],
-      'Company Secretarial & Compliance': ['company secretary', 'corporate secretarial', 'corporate governance', 'annual return', 'agm', 'board resolution', 'statutory compliance'],
-      'Trademark, Licenses, Copyright': ['trademark', 'copyright', 'intellectual property', 'ip registration', 'ipos', 'patent', 'license registration', 'business licence'],
+      'Company Incorporation': ['incorporation', 'company formation', 'business formation', 'company registration', 'business registration', 'set up company', 'pte ltd', 'acra registration'],
+      'Company Secretarial': ['company secretary', 'corporate secretarial', 'board resolution', 'agm', 'annual return', 'statutory compliance'],
+      'Compliance': ['corporate compliance', 'regulatory compliance', 'statutory filing', 'annual filing'],
+      'Entity Management': ['entity management', 'subsidiary management', 'holding company', 'group structure', 'corporate structure'],
       'Share Registry': ['share registry', 'shareholder', 'share transfer', 'share allotment', 'cap table', 'share certificate'],
-      'Entity Management': ['entity management', 'subsidiary management', 'holding company', 'group structure', 'corporate structure']
+      'Market Entry': ['market entry', 'market expansion', 'new market', 'business expansion', 'market penetration'],
+      'Acquisition': ['acquisition', 'takeover', 'buyout', 'corporate acquisition'],
+      'Liquidation Services': ['liquidation', 'winding up', 'dissolution', 'strike off', 'deregistration'],
+      'Leadership Change': ['leadership change', 'director change', 'management transition', 'board change', 'key personnel'],
+      'Advisory & Corporate Services': ['corporate advisory', 'corporate services advisory', 'business advisory'],
+      'Compliance Solutions': ['compliance solutions', 'compliance technology', 'regtech', 'compliance framework']
     }
   },
-  'Accounting and Tax': {
+  'Accounting & Tax': {
     keywords: ['accounting', 'tax', 'iras', 'gst', 'income tax', 'bookkeeping'],
     subcategories: {
-      'Accounting & Finance': ['accounting', 'bookkeeping', 'financial statements', 'management accounts', 'xbrl', 'finance outsourcing'],
-      'Tax Filing & Compliance': ['tax filing', 'tax return', 'corporate tax', 'income tax filing', 'iras filing', 'tax compliance', 'estimated chargeable income', 'eci'],
-      'Tax Advisory': ['tax advisory', 'tax planning', 'tax structuring', 'tax strategy', 'tax optimization'],
-      'Indirect Tax': ['gst', 'goods and services tax', 'indirect tax', 'vat', 'sales tax', 'gst registration', 'gst return'],
-      'Transfer Pricing': ['transfer pricing', 'tp documentation', 'related party transactions', 'arm length', 'beps'],
-      'Government Incentive Plans': ['government incentive', 'tax incentive', 'edb incentive', 'pioneer status', 'development expansion incentive', 'productivity grant', 'enterprise singapore grant']
+      'Tax Filing': ['tax filing', 'tax return', 'corporate tax', 'income tax filing', 'iras filing', 'tax compliance', 'estimated chargeable income', 'eci'],
+      'Tax Advisory': ['tax advisory', 'tax planning', 'tax structuring', 'tax strategy', 'tax optimization', 'transfer pricing'],
+      'Accounting': ['accounting', 'bookkeeping', 'financial statements', 'management accounts', 'xbrl', 'finance outsourcing'],
+      'GST/Indirect Tax': ['gst', 'goods and services tax', 'indirect tax', 'vat', 'sales tax', 'gst registration', 'gst return'],
+      'Government Incentives': ['government incentive', 'tax incentive', 'edb incentive', 'pioneer status', 'development expansion incentive', 'productivity grant', 'enterprise singapore grant'],
+      'Compliance': ['tax compliance', 'filing compliance', 'iras compliance'],
+      'Compliance Solutions': ['compliance solutions', 'tax compliance solutions'],
+      'Tax Refunds': ['tax refund', 'tax rebate', 'tax credit', 'refund claim']
     }
   },
-  'Risk Assurance & Audit': {
-    keywords: ['audit', 'assurance', 'risk', 'internal controls'],
+  'Compliance & Governance': {
+    keywords: ['compliance', 'governance', 'risk', 'aml', 'regulatory'],
     subcategories: {
-      'Operation Risk Management': ['operational risk', 'risk management', 'enterprise risk', 'risk assessment', 'business continuity'],
-      'Internal Audit Assurance': ['internal audit', 'audit assurance', 'audit committee', 'sox compliance', 'control testing'],
-      'Compliance & Governance Solutions': ['compliance', 'governance', 'aml', 'kyc', 'anti-money laundering', 'due diligence', 'regulatory compliance']
+      'Compliance Solutions': ['compliance', 'governance', 'regulatory compliance', 'compliance framework', 'compliance management'],
+      'Risk Management': ['risk management', 'enterprise risk', 'operational risk', 'risk assessment', 'business continuity'],
+      'AML': ['aml', 'anti-money laundering', 'kyc', 'know your customer', 'due diligence', 'sanctions screening']
+    }
+  },
+  'HR & Employment': {
+    keywords: ['hr', 'payroll', 'employment', 'recruitment', 'immigration', 'peo', 'eor'],
+    subcategories: {
+      'PEO/EOR Services': ['employer of record', 'eor', 'peo', 'professional employer', 'global employment'],
+      'Immigration': ['immigration', 'work pass', 'employment pass', 'ep application', 's pass', 'work permit', 'dependant pass'],
+      'Recruitment': ['recruitment', 'hiring', 'talent acquisition', 'staffing', 'executive search', 'headhunting'],
+      'Payroll': ['payroll', 'salary processing', 'payslip', 'cpf', 'central provident fund', 'payroll services', 'payroll outsourcing'],
+      'Compliance Solutions': ['hr compliance', 'employment compliance', 'labour law', 'employment act'],
+      'Partnership': ['hr partnership', 'staffing partnership', 'hr outsourcing partnership'],
+      'Business Consultancy': ['hr consultancy', 'hr advisory', 'workforce planning'],
+      'HR & Employment': ['human resources', 'hr management', 'employee relations', 'hr services']
+    }
+  },
+  'Fund Administration': {
+    keywords: ['fund', 'vcc', 'fund administration', 'asset management'],
+    subcategories: {
+      'Fund Admin': ['fund administration', 'fund admin', 'nav calculation', 'fund accounting', 'investor services', 'vcc', 'variable capital company'],
+      'Fund Governance': ['fund governance', 'fund director', 'fund oversight', 'investment committee'],
+      'Acquisition': ['fund acquisition', 'portfolio acquisition', 'fund merger']
+    }
+  },
+  'Financial Advisory': {
+    keywords: ['financial advisory', 'consulting', 'consultancy', 'm&a', 'advisory'],
+    subcategories: {
+      'Business Consultancy': ['business consultancy', 'management consulting', 'business advisory', 'strategy consulting'],
+      'M&A': ['merger', 'acquisition', 'm&a', 'takeover', 'buyout', 'deal advisory', 'valuation'],
+      'Fund Administration': ['fund advisory', 'fund management advisory', 'investment advisory'],
+      'Private Client': ['private client advisory', 'wealth advisory', 'high net worth advisory'],
+      'Market Analysis': ['market analysis', 'market research', 'market intelligence', 'industry analysis', 'competitive analysis'],
+      'Market Entry': ['market entry advisory', 'market expansion advisory', 'new market advisory'],
+      'Product Launch': ['product launch', 'go to market', 'new product', 'product strategy'],
+      'Leadership Change': ['leadership advisory', 'succession planning', 'executive transition']
+    }
+  },
+  'Fiduciary & Trust Services': {
+    keywords: ['fiduciary', 'trust', 'trustee', 'family office', 'private client'],
+    subcategories: {
+      'Trust Services': ['trust', 'trustee', 'trust fund', 'asset protection', 'family trust', 'trust administration'],
+      'Family Office': ['family office', 'single family office', 'multi family office', 'wealth management'],
+      'Private Client': ['private client', 'high net worth', 'hnwi', 'uhnwi', 'private wealth']
     }
   },
   'Cross Border & FDI': {
-    keywords: ['cross border', 'fdi', 'foreign direct investment', 'market entry'],
+    keywords: ['cross border', 'fdi', 'foreign direct investment', 'foreign investment'],
     subcategories: {
-      'Cross-Border Compliance': ['cross border compliance', 'cross-border', 'international compliance', 'cross border tax', 'multi-jurisdiction'],
-      'China ODI & Circular 37': ['china odi', 'outbound direct investment', 'circular 37', 'safe registration', 'china outbound'],
-      'UAE Free Zone and Mainland': ['uae free zone', 'uae mainland', 'dubai company', 'adgm', 'difc', 'dmcc', 'jafza']
+      'Foreign Investment': ['foreign investment', 'fdi', 'foreign direct investment', 'inbound investment', 'outbound investment'],
+      'Market Entry': ['cross border market entry', 'international expansion', 'overseas incorporation'],
+      'Partnership': ['cross border partnership', 'international partnership', 'joint venture', 'strategic alliance']
     }
   },
-  'Fiduciary': {
-    keywords: ['fiduciary', 'trust', 'fund', 'offshore'],
+  'Singapore Economy & Trade': {
+    keywords: ['singapore economy', 'singapore trade', 'economic policy', 'regulatory'],
     subcategories: {
-      'Fiduciary Corporate Services': ['offshore company', 'bvi company', 'cayman company', 'offshore incorporation', 'fiduciary services'],
-      'Trust Services': ['trust', 'trustee', 'trust fund', 'asset protection', 'family trust', 'trust administration'],
-      'Economic Substance': ['economic substance', 'substance requirements', 'crs', 'fatca', 'es law'],
-      'Fiduciary Compliance Solutions': ['fiduciary compliance', 'aeoi', 'common reporting standard', 'beneficial ownership']
+      'Policy': ['economic policy', 'government policy', 'budget', 'fiscal policy', 'trade policy'],
+      'Regulatory': ['regulatory update', 'regulation change', 'new regulation', 'regulatory framework'],
+      'Economy': ['singapore economy', 'gdp', 'economic growth', 'inflation', 'interest rate', 'trade balance'],
+      'IRAS': ['iras', 'inland revenue', 'iras update', 'iras announcement', 'tax authority'],
+      'ACRA': ['acra', 'accounting and corporate regulatory authority', 'acra update', 'acra announcement']
     }
   },
-  'Funds': {
-    keywords: ['fund', 'vcc', 'fund administration', 'asset management'],
+  'Competitor Intelligence': {
+    keywords: ['competitor', 'competitor intelligence', 'competitive landscape', 'market competitor'],
     subcategories: {
-      'Fund Administration': ['fund administration', 'fund admin', 'nav calculation', 'fund accounting', 'investor services'],
-      'Fund Governance': ['fund governance', 'fund director', 'fund oversight', 'investment committee'],
-      'Fund Compliance': ['fund compliance', 'aifmd', 'mas regulation fund', 'fund reporting'],
-      'Fund Corporate Services': ['vcc', 'variable capital company', 'fund incorporation', 'fund setup', 'fund vehicle']
-    }
-  },
-  'HR & Payroll': {
-    keywords: ['hr', 'payroll', 'employment', 'recruitment'],
-    subcategories: {
-      'PEO & EOR Services': ['employer of record', 'eor', 'peo', 'professional employer', 'global employment'],
-      'Global Immigration Services': ['immigration', 'work pass', 'employment pass', 'ep application', 's pass', 'work permit', 'dependant pass'],
-      'Outplacement': ['outplacement', 'career transition', 'redundancy support', 'separation services'],
-      'Statement of Work (SOW)': ['statement of work', 'sow', 'contractor management'],
-      'Recruitment': ['recruitment', 'hiring', 'talent acquisition', 'staffing', 'executive search', 'headhunting'],
-      'Payroll Outsourcing': ['payroll outsourcing', 'salary processing', 'payslip', 'cpf', 'central provident fund', 'payroll services'],
-      'Multi-Country Payroll': ['multi country payroll', 'global payroll', 'international payroll', 'cross border payroll'],
-      'Links One': ['links one', 'hr technology', 'hr platform', 'hr software']
-    }
-  },
-  'Private Client': {
-    keywords: ['private client', 'high net worth', 'hnwi', 'family office', 'wealth'],
-    subcategories: {
-      'Private Client Services': ['private client', 'high net worth', 'hnwi', 'uhnwi', 'family office', 'private wealth'],
-      'Private Trust Services': ['private trust', 'family trust', 'personal trust', 'discretionary trust', 'purpose trust'],
-      'Private Economic Substance': ['private economic substance', 'personal substance'],
-      'Private Corporate Services': ['private holding', 'spv', 'personal holding company', 'nominee director', 'nominee shareholder']
-    }
-  },
-  'Advisory': {
-    keywords: ['advisory', 'consulting', 'consultancy', 'esg', 'm&a'],
-    subcategories: {
-      'ESG & Compliance': ['esg', 'sustainability', 'green finance', 'climate risk', 'carbon', 'net zero', 'sustainability reporting'],
-      'Business Consultancy': ['business consultancy', 'management consulting', 'business advisory', 'strategy consulting'],
-      'Financial Advisory': ['financial advisory', 'financial planning', 'corporate finance', 'capital raising', 'ipo', 'fundraising'],
-      'M&A Advisory': ['merger', 'acquisition', 'm&a', 'takeover', 'buyout', 'deal advisory', 'valuation'],
-      'Insolvency/Liquidation': ['insolvency', 'liquidation', 'winding up', 'bankruptcy', 'judicial management', 'debt restructuring'],
-      'Business Intelligence Playbook': ['business intelligence', 'market intelligence', 'competitive intelligence', 'market research']
+      'Investment Increase': ['investment increase', 'funding round', 'capital raise', 'expansion investment', 'growth investment']
     }
   }
 };
