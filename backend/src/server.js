@@ -17,6 +17,9 @@ const PORT = parseInt(process.env.PORT, 10) || 5000;
 
 const app = express();
 
+// Enable 'trust proxy' to support correct IP rate-limiting behind proxies like Render
+app.set('trust proxy', 1);
+
 // --------- Middleware ---------
 app.use(helmet());
 app.use(express.json({ limit: '1mb' }));

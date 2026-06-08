@@ -68,9 +68,9 @@ export default function ArticleCard({
       </h3>
 
       {/* Summary */}
-      {(item.aiSummary || item.summary) && (
+      {(item.summary || item.aiSummary) && (
         <p className="text-[12px] sm:text-[13px] text-ink-500 leading-relaxed mb-3 pl-3 line-clamp-2 flex-1">
-          {item.aiSummary || item.summary}
+          {item.summary || item.aiSummary}
         </p>
       )}
 

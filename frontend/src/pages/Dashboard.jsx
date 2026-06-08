@@ -8,10 +8,10 @@ import { Skeleton } from '../components/Loader';
 import { Newspaper, Landmark, Building2, BookOpen, RefreshCw } from 'lucide-react';
 
 const COLUMNS = [
-  { key: 'govt',       label: 'Government Updates', icon: Landmark,  dot: 'bg-emerald-500' },
-  { key: 'news',       label: 'News',               icon: Newspaper, dot: 'bg-blue-500'    },
-  { key: 'evergreen',  label: 'Evergreen',          icon: BookOpen,  dot: 'bg-violet-500'  },
-  { key: 'competitor', label: 'Competitors',        icon: Building2, dot: 'bg-orange-500'  },
+  { key: 'govt', label: 'Government Updates', icon: Landmark, dot: 'bg-emerald-500' },
+  { key: 'news', label: 'News', icon: Newspaper, dot: 'bg-blue-500' },
+  { key: 'evergreen', label: 'Evergreen', icon: BookOpen, dot: 'bg-violet-500' },
+  { key: 'competitor', label: 'Competitors', icon: Building2, dot: 'bg-orange-500' },
 ];
 
 function SkeletonCard() {
@@ -43,7 +43,7 @@ function EmptyState({ icon: Icon, isAdmin }) {
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
-  const [data, setData]   = useState({ news: [], govt: [], competitor: [], evergreen: [] });
+  const [data, setData] = useState({ news: [], govt: [], competitor: [], evergreen: [] });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(() => {
     if (!user?._id) return {};
@@ -72,7 +72,7 @@ export default function Dashboard() {
 
   useEffect(() => { load(filters); }, [load, filters, refreshKey]);
 
-  const activeType     = filters.type;
+  const activeType = filters.type;
   const visibleColumns = activeType ? COLUMNS.filter((c) => c.key === activeType) : COLUMNS;
 
   return (
@@ -155,9 +155,9 @@ export default function Dashboard() {
           );
         })() : (
 
-        /* ══════════════════════════════════════════════════
-            DEFAULT VIEW — 4 columns, each with own scroll
-            ══════════════════════════════════════════════════ */
+          /* ══════════════════════════════════════════════════
+              DEFAULT VIEW — 4 columns, each with own scroll
+              ══════════════════════════════════════════════════ */
           <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
             {visibleColumns.map((col) => (
               /*
