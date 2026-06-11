@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const Article = require('../models/Article');
 const FetchLog = require('../models/FetchLog');
 const User = require('../models/User');
@@ -14,7 +15,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 const ADMIN_ROLES = ['admin', 'super_admin'];
 const MANAGED_ROLES = ['user', 'admin'];
-const ARTICLE_RANK_SORT = { relevanceScore: -1, effectiveDate: -1, fetchedAt: -1 };
+const ARTICLE_RANK_SORT = { effectiveDay: -1, relevanceScore: -1, effectiveDate: -1 };
 
 function canSeeUser(actor, target) {
   if (!target) return false;
@@ -109,6 +110,117 @@ router.patch('/articles/:id', asyncHandler(async (req, res) => {
 // ============== FETCH (manual trigger) ==============
 
 let isFetching = false;
+const N8N_TYPES = ['news', 'govt', 'competitor', 'evergreen'];
+const n8nRunning = new Set();
+
+function n8nEnvKey(type) {
+  return `N8N_WEBHOOK_URL_${String(type || '').toUpperCase()}`;
+}
+
+function getN8nWebhookUrl(type) {
+  const normalized = N8N_TYPES.includes(type) ? type : 'news';
+  return process.env[n8nEnvKey(normalized)] || '';
+}
+
+function getN8nStatus() {
+  const configured = Object.fromEntries(N8N_TYPES.map((type) => [type, Boolean(getN8nWebhookUrl(type))]));
+  const running = Object.fromEntries(N8N_TYPES.map((type) => [type, n8nRunning.has(type)]));
+  return {
+    isFetching: n8nRunning.size > 0,
+    configured,
+    running
+  };
+}
+
+async function runN8nWorkflow({ triggeredByUser, type = 'news' }) {
+  const webhookUrl = getN8nWebhookUrl(type);
+  if (!webhookUrl) {
+    throw new Error(`${n8nEnvKey(type)} is not configured`);
+  }
+
+  const startedAt = new Date();
+  const log = await FetchLog.create({
+    triggeredBy: 'n8n',
+    triggeredByUser,
+    status: 'running',
+    startedAt,
+    notes: `n8n ${type} workflow started from Admin Panel`
+  });
+
+  const callbackUrl = process.env.N8N_CALLBACK_URL || '';
+  const callbackSecret = process.env.N8N_CALLBACK_SECRET || '';
+
+  try {
+    const response = await axios.post(
+      webhookUrl,
+      {
+        trigger: 'manual',
+        type,
+        logId: String(log._id),
+        startedAt: startedAt.toISOString(),
+        callbackUrl,
+        callbackSecret
+      },
+      {
+        timeout: parseInt(process.env.N8N_WEBHOOK_TIMEOUT_MS, 10) || 1000 * 60 * 20,
+        headers: {
+          ...(process.env.N8N_WEBHOOK_SECRET ? { 'x-n8n-secret': process.env.N8N_WEBHOOK_SECRET } : {})
+        }
+      }
+    );
+
+    const body = response.data || {};
+    const finishedLog = await FetchLog.findById(log._id);
+    if (!finishedLog || finishedLog.status !== 'running') return;
+
+    const finishedAt = new Date();
+    const totalErrors = Number(body.totalErrors || body.errors || 0);
+    finishedLog.status = body.status || (totalErrors > 0 ? 'partial' : 'success');
+    finishedLog.finishedAt = finishedAt;
+    finishedLog.durationMs = finishedAt.getTime() - startedAt.getTime();
+    finishedLog.totalFetched = Number(body.totalFetched || body.fetched || 0);
+    finishedLog.totalInserted = Number(body.totalInserted || body.inserted || 0);
+    finishedLog.totalDuplicates = Number(body.totalDuplicates || body.duplicates || 0);
+    finishedLog.totalErrors = totalErrors;
+    finishedLog.perSource = Array.isArray(body.perSource)
+      ? body.perSource
+      : [{
+          sourceId: 'n8n',
+          sourceName: `n8n ${type} workflow`,
+          type,
+          attempted: Number(body.totalFetched || body.fetched || 0),
+          fetched: Number(body.totalFetched || body.fetched || 0),
+          inserted: Number(body.totalInserted || body.inserted || 0),
+          duplicates: Number(body.totalDuplicates || body.duplicates || 0),
+          errors: totalErrors,
+          errorMessages: body.errorMessage ? [body.errorMessage] : []
+        }];
+    finishedLog.notes = body.notes || `n8n ${type} workflow completed`;
+    await finishedLog.save();
+  } catch (err) {
+    await FetchLog.findByIdAndUpdate(log._id, {
+      $set: {
+        status: 'failed',
+        finishedAt: new Date(),
+        durationMs: Date.now() - startedAt.getTime(),
+        totalErrors: 1,
+        perSource: [{
+          sourceId: 'n8n',
+          sourceName: `n8n ${type} workflow`,
+          type,
+          attempted: 1,
+          fetched: 0,
+          inserted: 0,
+          duplicates: 0,
+          errors: 1,
+          errorMessages: [err.message]
+        }],
+        notes: `n8n ${type} workflow trigger failed`
+      }
+    });
+    throw err;
+  }
+}
 
 // POST /api/admin/fetch    body: { types?: ['news','govt','competitor','evergreen'] }
 router.post('/fetch', asyncHandler(async (req, res) => {
@@ -137,6 +249,33 @@ router.get('/fetch/status', (_req, res) => {
   res.json({ isFetching });
 });
 
+// POST /api/admin/n8n/run
+router.post('/n8n/run', asyncHandler(async (req, res) => {
+  const type = N8N_TYPES.includes(req.body?.type) ? req.body.type : 'news';
+  if (n8nRunning.has(type)) {
+    return res.status(409).json({ message: `The n8n ${type} workflow is already in progress` });
+  }
+  if (!getN8nWebhookUrl(type)) {
+    return res.status(400).json({ message: `${n8nEnvKey(type)} is not configured` });
+  }
+
+  n8nRunning.add(type);
+  res.json({ message: `n8n ${type} workflow started`, triggeredBy: 'manual', type, startedAt: new Date() });
+
+  try {
+    await runN8nWorkflow({ triggeredByUser: req.user._id, type });
+  } catch (err) {
+    console.error(`[admin] n8n ${type} workflow failed:`, err);
+  } finally {
+    n8nRunning.delete(type);
+  }
+}));
+
+// GET /api/admin/n8n/status
+router.get('/n8n/status', (_req, res) => {
+  res.json(getN8nStatus());
+});
+
 // ============== STATS ==============
 
 router.get('/stats', asyncHandler(async (_req, res) => {
@@ -147,7 +286,29 @@ router.get('/stats', asyncHandler(async (_req, res) => {
     Article.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
     Article.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }, { $sort: { count: -1 } }, { $limit: 10 }]),
     Article.aggregate([
-      { $addFields: { effectiveDate: { $ifNull: ['$publishedAt', '$fetchedAt'] } } },
+      {
+        $addFields: {
+          effectiveDate: {
+            $convert: {
+              input: { $ifNull: ['$fetchedAt', '$publishedAt'] },
+              to: 'date',
+              onError: new Date(0),
+              onNull: new Date(0)
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          effectiveDay: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$effectiveDate',
+              timezone: 'Asia/Kolkata'
+            }
+          }
+        }
+      },
       { $sort: ARTICLE_RANK_SORT },
       { $limit: 5 },
       { $project: { title: 1, type: 1, source: 1, fetchedAt: 1, publishedAt: 1, effectiveDate: 1, relevanceScore: 1, isPublished: 1 } }

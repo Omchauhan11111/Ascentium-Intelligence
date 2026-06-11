@@ -7,8 +7,9 @@ import { Skeleton } from '../components/Loader';
 import AnalyticsSection from '../components/AnalyticsSection';
 import Layout from '../components/Layout';
 import {
-  Newspaper, Landmark, Building2, BookOpen, RefreshCw, TrendingUp, ArrowUpRight
+  Newspaper, Landmark, Building2, BookOpen, RefreshCw, TrendingUp, ArrowUpRight, MapPin, Clock3, Folder
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const CRIMSON = '#D11243';
 
@@ -50,13 +51,13 @@ function TopSignalsRail({ items }) {
   if (!items.length) return null;
 
   return (
-    <section className="mb-4 shrink-0 rounded-xl border border-brand-crimson/10 bg-white shadow-card overflow-hidden">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 px-4 py-2.5 border-b border-gray-100">
+    <section className="mb-4 shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-card">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 px-4 py-3 border-b border-gray-100">
         <div>
           <div className="eyebrow mb-1">Priority queue</div>
           <h2 className="font-black text-[18px] text-gray-900 tracking-tight">Top 5 Signals</h2>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-gray-400 font-black">Score ranked across all feeds</span>
+        <span className="text-[10px] uppercase tracking-[0.16em] text-gray-400 font-black">Latest first - score ranked</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
@@ -64,6 +65,9 @@ function TopSignalsRail({ items }) {
           const meta = TYPE_LABELS[item.type] || TYPE_LABELS.news;
           const Icon = meta.icon;
           const score = Math.round(Number(item.relevanceScore || 0));
+          const when = item.fetchedAt || item.publishedAt
+            ? formatDistanceToNow(new Date(item.fetchedAt || item.publishedAt), { addSuffix: true })
+            : '';
 
           return (
             <a
@@ -71,7 +75,7 @@ function TopSignalsRail({ items }) {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group min-w-0 p-3.5 hover:bg-brand-pink/25 transition-all"
+              className="group min-w-0 p-3.5 hover:bg-gray-50 transition-all"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -95,8 +99,23 @@ function TopSignalsRail({ items }) {
               <h3 className="font-black text-[13px] leading-snug text-gray-900 line-clamp-2 group-hover:text-brand-crimson transition-colors">
                 {item.title}
               </h3>
+              <div className="mt-3 space-y-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={11} className="shrink-0" />
+                  <span className="truncate">{item.country || 'Not specified'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Folder size={11} className="shrink-0" />
+                  <span className="truncate">{item.category || 'General'}</span>
+                </div>
+              </div>
               <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-gray-400">
                 <span className="truncate font-semibold">{item.source || 'Unknown source'}</span>
+                {when && (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <Clock3 size={11} /> {when}
+                  </span>
+                )}
                 <ArrowUpRight size={13} className="shrink-0 opacity-50 group-hover:opacity-100" />
               </div>
             </a>
@@ -107,11 +126,38 @@ function TopSignalsRail({ items }) {
   );
 }
 
+function getEffectiveTime(item) {
+  return new Date(item.fetchedAt || item.publishedAt || 0).getTime();
+}
+
+function getEffectiveDateKey(item) {
+  const time = getEffectiveTime(item);
+  if (!time) return '';
+  const date = new Date(time);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function dateScoreRanked(items = []) {
+  return [...items].sort((a, b) => {
+    const dateDiff = getEffectiveDateKey(b).localeCompare(getEffectiveDateKey(a));
+    if (dateDiff) return dateDiff;
+
+    const scoreDiff = (b.relevanceScore || 0) - (a.relevanceScore || 0);
+    if (scoreDiff) return scoreDiff;
+
+    return getEffectiveTime(b) - getEffectiveTime(a);
+  });
+}
+
 function FeedColumn({ column, items, loading, isAdmin }) {
   const Icon = column.icon;
+  const countries = [...new Set(items.map((item) => item.country).filter(Boolean))].slice(0, 3);
 
   return (
-    <section className="min-h-0 rounded-xl border border-gray-100 bg-white/70 shadow-card overflow-hidden flex flex-col">
+    <section className="min-h-0 rounded-lg border border-gray-100 bg-white shadow-card overflow-hidden flex flex-col">
       <div className="px-4 py-3 border-b border-gray-100 bg-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -120,7 +166,9 @@ function FeedColumn({ column, items, loading, isAdmin }) {
             </span>
             <div className="min-w-0">
               <h2 className="font-black text-[14px] text-gray-900 truncate">{column.label}</h2>
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Ranked feed</p>
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold truncate">
+                {countries.length ? countries.join(' / ') : 'Ranked feed'}
+              </p>
             </div>
           </div>
           <span className="rounded-md px-2 py-1 text-[11px] font-black" style={{ color: column.color, background: column.tint }}>
@@ -129,7 +177,7 @@ function FeedColumn({ column, items, loading, isAdmin }) {
         </div>
       </div>
 
-      <div className="hide-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="hide-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto bg-gray-50/40 p-3">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
           : items.length
@@ -143,7 +191,8 @@ function FeedColumn({ column, items, loading, isAdmin }) {
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const [data, setData] = useState({ news: [], govt: [], competitor: [], evergreen: [] });
-  const [velocityData, setVelocityData] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState({ news: [], govt: [], competitor: [], evergreen: [] });
+  const [analyticsVelocityData, setAnalyticsVelocityData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dashTab, setDashTab] = useState('analytics');
   const [filters, setFilters] = useState(() => {
@@ -165,12 +214,14 @@ export default function Dashboard() {
     try {
       const params = {};
       for (const [k, v] of Object.entries(f || {})) if (v) params[k] = v;
-      const [dashboardRes, velocityRes] = await Promise.all([
+      const [dashboardRes, analyticsRes, analyticsVelocityRes] = await Promise.all([
         api.get('/articles/dashboard', { params }),
-        api.get('/articles/velocity', { params })
+        api.get('/articles/dashboard'),
+        api.get('/articles/velocity', { params: { scope: 'dataset' } })
       ]);
       setData(dashboardRes.data);
-      setVelocityData(velocityRes.data.days || []);
+      setAnalyticsData(analyticsRes.data);
+      setAnalyticsVelocityData(analyticsVelocityRes.data.days || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, []);
@@ -179,16 +230,23 @@ export default function Dashboard() {
 
   const activeType = filters.type;
   const visibleColumns = activeType ? FEED_COLUMNS.filter(c => c.key === activeType) : FEED_COLUMNS;
+  const rankedData = {
+    news: dateScoreRanked(data.news),
+    govt: dateScoreRanked(data.govt),
+    competitor: dateScoreRanked(data.competitor),
+    evergreen: dateScoreRanked(data.evergreen),
+  };
   const mobileFeedItems = visibleColumns
-    .flatMap((col) => data[col.key] || [])
+    .flatMap((col) => rankedData[col.key] || [])
     .sort((a, b) => {
+      const dateDiff = getEffectiveDateKey(b).localeCompare(getEffectiveDateKey(a));
+      if (dateDiff) return dateDiff;
+
       const scoreDiff = (b.relevanceScore || 0) - (a.relevanceScore || 0);
       if (scoreDiff) return scoreDiff;
-      const dateA = new Date(a.publishedAt || a.fetchedAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.fetchedAt || 0).getTime();
-      return dateB - dateA;
+      return getEffectiveTime(b) - getEffectiveTime(a);
     });
-  const topSignals = [...mobileFeedItems].slice(0, 5);
+  const topSignals = mobileFeedItems.slice(0, 5);
 
   return (
     <Layout>
@@ -219,11 +277,11 @@ export default function Dashboard() {
         </div>
 
         {dashTab === 'analytics' ? (
-          <div className="pb-6 px-1">
-            <AnalyticsSection data={data} velocityData={velocityData} loading={loading} />
+          <div className="pb-6">
+            <AnalyticsSection data={analyticsData} velocityData={analyticsVelocityData} loading={loading} />
           </div>
         ) : (
-          <div className="flex flex-col px-1">
+          <div className="flex flex-col">
             {/* Filters */}
             {!loading && topSignals.length > 0 && (
               <TopSignalsRail items={topSignals} />
@@ -247,17 +305,17 @@ export default function Dashboard() {
                           <h2 className="font-bold text-[15px] text-gray-800">{col.label}</h2>
                         </div>
                         <span className="text-[11px] text-gray-400 uppercase tracking-wider font-mono">
-                          {loading ? '…' : data[col.key]?.length || 0}
+                          {loading ? '…' : rankedData[col.key]?.length || 0}
                         </span>
                       </div>
                       <div className="pb-6 pr-1">
                         {loading ? (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
                           </div>
-                        ) : data[col.key]?.length ? (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6">
-                            {data[col.key].map(item => <ArticleCard key={item._id} item={item} />)}
+                        ) : rankedData[col.key]?.length ? (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {rankedData[col.key].map(item => <ArticleCard key={item._id} item={item} />)}
                           </div>
                         ) : (
                           <EmptyState icon={col.icon} isAdmin={isAdmin} />
@@ -276,9 +334,9 @@ export default function Dashboard() {
                     ? mobileFeedItems.map(item => <ArticleCard key={item._id} item={item} />)
                     : <EmptyState icon={Newspaper} isAdmin={isAdmin} />}
               </div>
-              <div className="hidden xl:grid h-[calc(100vh-190px)] min-h-[520px] grid-cols-4 gap-4 pb-8">
+              <div className="hidden xl:grid h-[calc(100vh-190px)] min-h-[520px] grid-cols-4 gap-3 2xl:gap-4 pb-8">
                 {visibleColumns.map(col => (
-                  <FeedColumn key={col.key} column={col} items={data[col.key] || []} loading={loading} isAdmin={isAdmin} />
+                  <FeedColumn key={col.key} column={col} items={rankedData[col.key] || []} loading={loading} isAdmin={isAdmin} />
                 ))}
                 {false && visibleColumns.map(col => (
                   <div key={col.key} className="flex min-h-0 flex-col">
@@ -289,14 +347,14 @@ export default function Dashboard() {
                         <h2 className="font-bold text-[15px] text-gray-800">{col.label}</h2>
                       </div>
                       <span className="text-[11px] text-gray-400 uppercase tracking-wider font-mono">
-                        {loading ? '…' : data[col.key]?.length || 0}
+                        {loading ? '…' : rankedData[col.key]?.length || 0}
                       </span>
                     </div>
                     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4 pr-1">
                       {loading
                         ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-                        : data[col.key]?.length
-                          ? data[col.key].map(item => <ArticleCard key={item._id} item={item} />)
+                        : rankedData[col.key]?.length
+                          ? rankedData[col.key].map(item => <ArticleCard key={item._id} item={item} />)
                           : <EmptyState icon={col.icon} isAdmin={isAdmin} />}
                     </div>
                   </div>

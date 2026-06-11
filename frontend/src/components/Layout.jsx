@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -144,6 +144,9 @@ export default function Layout({ children }) {
   });
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const notificationsRef = useRef(null);
+  const mobileNotificationsRef = useRef(null);
+  const profileMenuRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem('sidebar_collapsed', collapsed);
@@ -180,6 +183,24 @@ export default function Layout({ children }) {
     setShowProfileMenu(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      const target = event.target;
+      const clickedNotifications = notificationsRef.current?.contains(target) || mobileNotificationsRef.current?.contains(target);
+      const clickedProfile = profileMenuRef.current?.contains(target);
+
+      if (!clickedNotifications) setShowNotifications(false);
+      if (!clickedProfile) setShowProfileMenu(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, []);
+
   const getPageTitle = () => {
     const path = location.pathname;
     if (path.startsWith('/admin')) return 'Admin Panel';
@@ -199,7 +220,7 @@ export default function Layout({ children }) {
           <span className="text-sm font-bold text-gray-800 truncate">{getPageTitle()}</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative" ref={mobileNotificationsRef}>
           <button
             onClick={() => {
               setShowNotifications((v) => !v);
@@ -338,14 +359,14 @@ export default function Layout({ children }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header */}
-        <header className="hidden md:flex shrink-0 bg-white border-b border-gray-100 items-center justify-between px-8 py-4"
+        <header className="hidden md:flex shrink-0 bg-white border-b border-gray-100 items-center justify-between px-5 py-4"
           style={{ boxShadow: '0 1px 0 rgba(209,18,67,0.06)' }}>
           <div className="flex items-center gap-3">
             <span className="text-base font-bold text-gray-800">{getPageTitle()}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative">
+            <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => {
                   setShowNotifications((v) => !v);
@@ -359,7 +380,7 @@ export default function Layout({ children }) {
               {showNotifications && <NotificationsMenu isAdmin={isAdmin} />}
             </div>
 
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
             <button
               className="flex items-center gap-2.5 pl-2 border-l border-gray-100 cursor-pointer hover:opacity-85"
               onClick={() => {
@@ -388,8 +409,8 @@ export default function Layout({ children }) {
         </header>
 
         {/* Content Body: added padding so it doesn't touch the screen edges */}
-        <main className="flex-1 min-h-0 overflow-y-auto bg-canvas p-3 sm:p-5 lg:p-8 pb-20 md:pb-8 transition-all duration-300">
-          <div className="max-w-[1400px] mx-auto w-full h-full">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-canvas p-3 sm:p-4 lg:p-5 pb-20 md:pb-5 transition-all duration-300">
+          <div className="w-full h-full">
             {children}
           </div>
         </main>

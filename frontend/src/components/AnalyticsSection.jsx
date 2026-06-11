@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
-import { TrendingUp, Newspaper, Landmark, Building2, BookOpen, BarChart2, Activity, Globe, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { TrendingUp, Newspaper, Landmark, Building2, BarChart2, Activity, Globe, Sparkles, ExternalLink, Clock3, MapPin, Tag } from 'lucide-react';
 
 const CRIMSON = '#D11243';
 const DARK_RED = '#8F0B2F';
+const DASHBOARD_TIMEZONE = 'Asia/Singapore';
 
 function StatCard({ icon: Icon, label, value, sub, color, delay = 0 }) {
   return (
@@ -117,11 +119,15 @@ function DonutChart({ data }) {
   );
 }
 
-function SignalChart({ data }) {
+function SignalChart({ data, mode }) {
   const max = Math.max(...data.map(d => d.count), 1);
-  const W = 280, H = 80;
+  const W = 100, H = 80, PLOT_PAD = 4;
+  const xForIndex = (i) => {
+    if (data.length <= 1) return W / 2;
+    return (i / (data.length - 1)) * (W - (PLOT_PAD * 2)) + PLOT_PAD;
+  };
   const pts = data.map((d, i) => ({
-    x: (i / (data.length - 1)) * (W - 20) + 10,
+    x: xForIndex(i),
     y: H - 10 - ((d.count / max) * (H - 20)),
   }));
 
@@ -141,11 +147,18 @@ function SignalChart({ data }) {
           <Activity size={16} style={{ color: CRIMSON }} />
           <span className="text-sm font-bold text-gray-700">Signal Velocity</span>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">Last 7 days</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
+          {mode === 'today' ? 'Today' : 'All dataset by date'}
+        </span>
       </div>
 
       <div className="relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '80px' }}>
+        <div className="relative h-20">
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="none"
+            className="absolute inset-0 h-full w-full overflow-visible"
+          >
           <defs>
             <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={CRIMSON} stopOpacity="0.18" />
@@ -153,15 +166,29 @@ function SignalChart({ data }) {
             </linearGradient>
           </defs>
           <path d={areaD} fill="url(#chartGrad)" />
-          <path d={pathD} fill="none" stroke={CRIMSON} strokeWidth="2" strokeLinecap="round" />
+          <path d={pathD} fill="none" stroke={CRIMSON} strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
           {pts.map((pt, i) => (
-            <circle key={i} cx={pt.x} cy={pt.y} r="3" fill={CRIMSON} stroke="white" strokeWidth="1.5" />
+            <span
+              key={i}
+              className="absolute h-2 w-2 rounded-full border-2 border-white"
+              style={{
+                left: `${pt.x}%`,
+                top: `${(pt.y / H) * 100}%`,
+                background: CRIMSON,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
           ))}
-        </svg>
+        </div>
 
-        <div className="flex justify-between mt-1">
+        <div className="relative mt-1 h-8">
           {data.map((d, i) => (
-            <div key={i} className="flex flex-col items-center">
+            <div
+              key={i}
+              className="absolute flex w-12 -translate-x-1/2 flex-col items-center"
+              style={{ left: `${pts[i]?.x ?? 50}%` }}
+            >
               <span className="text-[9px] font-bold text-gray-400 uppercase">{d.day}</span>
               <span className="text-[10px] font-black text-gray-600">{d.count}</span>
             </div>
@@ -202,75 +229,252 @@ function SourceCard({ label, status, lastFetch, count }) {
   );
 }
 
-function InsightsCard({ counts, total }) {
+function getArticleTime(item) {
+  const time = new Date(item?.fetchedAt || item?.publishedAt || item?.createdAt || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function formatDashboardDateKey(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DASHBOARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatDashboardWeekday(date) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: DASHBOARD_TIMEZONE,
+    weekday: 'short',
+  }).format(date).toUpperCase();
+}
+
+function getArticleDay(item) {
+  if (item?.effectiveDay) return String(item.effectiveDay).slice(0, 10);
+  const time = getArticleTime(item);
+  return time ? formatDashboardDateKey(new Date(time)) : '';
+}
+
+function dateFromKey(key) {
+  const [year, month, day] = String(key || '').split('-').map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+function keyFromUtcDate(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildSignalData(items) {
+  const counts = items.reduce((acc, item) => {
+    const key = getArticleDay(item);
+    if (key) acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const latestKey = Object.keys(counts).sort().at(-1) || formatDashboardDateKey(new Date());
+  const end = dateFromKey(latestKey);
+
+  return Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date(end);
+    date.setUTCDate(end.getUTCDate() - (6 - index));
+    const key = keyFromUtcDate(date);
+    return {
+      date: key,
+      day: formatDashboardWeekday(date),
+      count: counts[key] || 0,
+    };
+  });
+}
+
+function formatLastFetch(items) {
+  const latest = Math.max(0, ...items.map(getArticleTime));
+  return latest ? formatDistanceToNow(new Date(latest), { addSuffix: true }) : 'No data';
+}
+
+function uniqueLabels(items, key, fallback) {
+  const labels = [...new Set(items.map((item) => item?.[key]).filter(Boolean))].slice(0, 3);
+  return labels.length ? labels.join(' | ') : fallback;
+}
+
+function formatCompactDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-SG', {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function InsightItem({ item, color }) {
+  const score = Math.round(Number(item.relevanceScore || 0));
+  const when = item.fetchedAt || item.publishedAt
+    ? formatDistanceToNow(new Date(item.fetchedAt || item.publishedAt), { addSuffix: true })
+    : '';
+  const exactTime = formatCompactDateTime(item.fetchedAt || item.publishedAt);
+  const source = item.source || 'Unknown source';
+  const country = item.country || item.market || 'Not specified';
+
+  return (
+    <article className="min-w-0 rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span
+              className="inline-flex rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wider"
+              style={{ color, background: `${color}12`, border: `1px solid ${color}24` }}
+            >
+              {item.category || item.type || 'Signal'}
+            </span>
+            {item.subcategory && (
+              <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <Tag size={11} className="shrink-0" />
+                <span className="truncate">{item.subcategory}</span>
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] font-black leading-snug text-gray-900 line-clamp-2">
+            {item.title}
+          </p>
+        </div>
+        {score > 0 && (
+          <span
+            className="shrink-0 rounded-md px-2 py-1 text-[10px] font-black"
+            style={{ color, background: `${color}12`, border: `1px solid ${color}22` }}
+            title="Relevance score"
+          >
+            {score}
+          </span>
+        )}
+      </div>
+
+      <p className="mb-4 text-[12px] leading-relaxed text-gray-500 line-clamp-3">
+        {item.aiSummary || item.summary || 'No summary available.'}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        <span className="flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 ring-1 ring-gray-100">
+          <MapPin size={11} className="shrink-0 text-gray-400" />
+          <span className="truncate">{country}</span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 ring-1 ring-gray-100" title={exactTime}>
+          <Clock3 size={11} className="shrink-0 text-gray-400" />
+          <span className="truncate">{when || exactTime}</span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 ring-1 ring-gray-100">
+          <Globe size={11} className="shrink-0 text-gray-400" />
+          <span className="truncate">{source}</span>
+        </span>
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 py-1 transition-all hover:bg-brand-pink/50"
+          style={{ color }}
+        >
+          Source <ExternalLink size={11} />
+        </a>
+      </div>
+    </article>
+  );
+}
+
+function InsightsCard({ topArticles }) {
   return (
     <div
-      className="bg-white rounded-xl p-4 sm:p-5 border border-brand-crimson/15 relative overflow-hidden fade-in"
+      className="relative overflow-hidden rounded-lg border border-gray-100 bg-white p-4 fade-in sm:p-5"
       style={{
-        boxShadow: '0 4px 24px rgba(209,18,67,0.03), 0 1px 2px rgba(209,18,67,0.01)',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(15,23,42,0.04)',
         animationDelay: '0.25s',
       }}
     >
-      {/* Decorative gradient overlay */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-crimson via-brand-hoverred to-brand-pink" />
-      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-brand-crimson animate-pulse" />
+          <Sparkles size={16} className="text-brand-crimson" />
           <span className="text-sm font-bold text-gray-800">Executive Briefing & Strategic Insights</span>
         </div>
-        <span className="text-[9px] bg-brand-crimson/5 text-brand-crimson px-2 py-0.5 rounded font-mono uppercase tracking-wider font-bold">
-          AI generated
+        <span className="rounded-md bg-brand-crimson/5 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-brand-crimson ring-1 ring-brand-crimson/10">
+          From current data
         </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Insight 1 */}
-        <div className="p-4 rounded-lg bg-emerald-50/30 border border-emerald-100/40 hover:border-emerald-200/50 transition-all">
-          <div className="flex items-center gap-2 mb-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-            MOM Compliance Notice
+        {topArticles.length ? (
+          topArticles.map((item, index) => (
+            <InsightItem
+              key={item._id || item.urlHash || item.url || index}
+              item={item}
+              color={index === 0 ? '#10b981' : index === 1 ? CRIMSON : '#8b5cf6'}
+            />
+          ))
+        ) : (
+          <div className="md:col-span-3 p-4 rounded-lg bg-gray-50 border border-gray-100">
+            <p className="text-[12px] text-gray-500 leading-relaxed">
+              No current signals available for the selected filters.
+            </p>
           </div>
-          <p className="text-[12px] text-gray-600 leading-relaxed">
-            MOM Singapore updated quota and compliance ratios for workforce operations. Action recommended: Review HR-related documentation updates in Singapore Guides.
-          </p>
-        </div>
-
-        {/* Insight 2 */}
-        <div className="p-4 rounded-lg bg-brand-pink/20 border border-brand-crimson/10 hover:border-brand-crimson/20 transition-all">
-          <div className="flex items-center gap-2 mb-2 text-brand-crimson font-bold text-xs uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-crimson" />
-            Regulator Updates Surge
-          </div>
-          <p className="text-[12px] text-gray-600 leading-relaxed">
-            Government signals and filings spiked by <span className="font-bold text-brand-crimson">{counts.govt} items</span> this week. Primary focuses are ACRA registers and corporate filing calendars.
-          </p>
-        </div>
-
-        {/* Insight 3 */}
-        <div className="p-4 rounded-lg bg-purple-50/30 border border-purple-100/40 hover:border-purple-200/50 transition-all">
-          <div className="flex items-center gap-2 mb-2 text-purple-800 font-bold text-xs uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            Competitor Intelligence
-          </div>
-          <p className="text-[12px] text-gray-600 leading-relaxed">
-            Vistra and Tricor expanded local corporate advisory lines in ASEAN. Competitor movements recorded: <span className="font-bold text-purple-700">{counts.competitor} signals</span> total.
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function AnalyticsSection({ data, velocityData = [], loading }) {
+  const [viewMode, setViewMode] = useState('all');
+  const allArticles = useMemo(
+    () => Object.values(data || {}).flat().filter(Boolean),
+    [data]
+  );
+  const todayKey = formatDashboardDateKey(new Date());
+
+  const visibleArticles = useMemo(
+    () => viewMode === 'today'
+      ? allArticles.filter((item) => getArticleDay(item) === todayKey)
+      : allArticles,
+    [allArticles, todayKey, viewMode]
+  );
+
+  const articlesByType = useMemo(() => ({
+    news: visibleArticles.filter((item) => item.type === 'news'),
+    govt: visibleArticles.filter((item) => item.type === 'govt'),
+    competitor: visibleArticles.filter((item) => item.type === 'competitor'),
+    evergreen: visibleArticles.filter((item) => item.type === 'evergreen'),
+  }), [visibleArticles]);
+
   const counts = useMemo(() => ({
-    news: data?.news?.length || 0,
-    govt: data?.govt?.length || 0,
-    competitor: data?.competitor?.length || 0,
-    evergreen: data?.evergreen?.length || 0,
-  }), [data]);
+    news: articlesByType.news.length,
+    govt: articlesByType.govt.length,
+    competitor: articlesByType.competitor.length,
+    evergreen: articlesByType.evergreen.length,
+  }), [articlesByType]);
 
   const total = Object.values(counts).reduce((s, v) => s + v, 0);
+
+  const topArticles = useMemo(
+    () => [...visibleArticles]
+      .sort((a, b) => {
+        const dayDiff = getArticleDay(b).localeCompare(getArticleDay(a));
+        if (dayDiff !== 0) return dayDiff;
+        const scoreDiff = Number(b.relevanceScore || 0) - Number(a.relevanceScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return getArticleTime(b) - getArticleTime(a);
+      })
+      .slice(0, 3),
+    [visibleArticles]
+  );
+
+  const categoryCount = useMemo(
+    () => new Set(visibleArticles.map((item) => item.category).filter(Boolean)).size,
+    [visibleArticles]
+  );
 
   const donutData = [
     { label: 'Government', value: counts.govt, color: '#10b981' },
@@ -279,23 +483,36 @@ export default function AnalyticsSection({ data, velocityData = [], loading }) {
     { label: 'Evergreen', value: counts.evergreen, color: '#8b5cf6' },
   ];
 
-  const signalData = velocityData.length
-    ? velocityData
-    : [
-      { day: 'MON', count: 0 },
-      { day: 'TUE', count: 0 },
-      { day: 'WED', count: 0 },
-      { day: 'THU', count: 0 },
-      { day: 'FRI', count: 0 },
-      { day: 'SAT', count: 0 },
-      { day: 'SUN', count: total },
-    ];
+  const signalData = useMemo(() => {
+    if (viewMode === 'all' && velocityData.length) return velocityData;
+    return buildSignalData(visibleArticles);
+  }, [velocityData, viewMode, visibleArticles]);
 
-  const sources = [
-    { label: 'Government Registries (ACRA · MOM · IRAS)', status: 'ok', lastFetch: 'Today 07:02 SGT', count: `${counts.govt} articles` },
-    { label: 'News Outlets (Business Times · CNA)', status: 'ok', lastFetch: 'Today 07:04 SGT', count: `${counts.news} articles` },
-    { label: 'Competitor Intelligence (Vistra · TMF · Tricor)', status: 'ok', lastFetch: 'Today 07:06 SGT', count: `${counts.competitor} articles` },
-    { label: 'Evergreen Guides & Resources', status: total === 0 ? 'warn' : 'ok', lastFetch: 'Today 07:08 SGT', count: `${counts.evergreen} articles` },
+  const dynamicSources = [
+    {
+      label: `Government (${uniqueLabels(articlesByType.govt, 'source', 'No sources')})`,
+      status: counts.govt > 0 ? 'ok' : 'warn',
+      lastFetch: formatLastFetch(articlesByType.govt),
+      count: `${counts.govt} articles`,
+    },
+    {
+      label: `News (${uniqueLabels(articlesByType.news, 'source', 'No sources')})`,
+      status: counts.news > 0 ? 'ok' : 'warn',
+      lastFetch: formatLastFetch(articlesByType.news),
+      count: `${counts.news} articles`,
+    },
+    {
+      label: `Competitors (${uniqueLabels(articlesByType.competitor, 'source', 'No sources')})`,
+      status: counts.competitor > 0 ? 'ok' : 'warn',
+      lastFetch: formatLastFetch(articlesByType.competitor),
+      count: `${counts.competitor} articles`,
+    },
+    {
+      label: `Evergreen (${uniqueLabels(articlesByType.evergreen, 'source', 'No sources')})`,
+      status: counts.evergreen > 0 ? 'ok' : 'warn',
+      lastFetch: formatLastFetch(articlesByType.evergreen),
+      count: `${counts.evergreen} articles`,
+    },
   ];
 
   if (loading) {
@@ -356,50 +573,74 @@ export default function AnalyticsSection({ data, velocityData = [], loading }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: CRIMSON }}>
-            Singapore · Daily Brief
+            {viewMode === 'today' ? 'Today only' : 'Current dataset'}
           </p>
           <h2 className="text-2xl font-black text-gray-900 tracking-tight animate-pulse"
             style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>
             Intelligence Overview
           </h2>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
-          style={{ background: 'rgba(209,18,67,0.08)', color: CRIMSON }}>
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 absolute" />
-          Live Signals
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-full bg-white border border-brand-crimson/10 p-1 shadow-sm">
+            {[
+              { key: 'all', label: 'All Data' },
+              { key: 'today', label: 'Today' },
+            ].map((mode) => (
+              <button
+                key={mode.key}
+                type="button"
+                onClick={() => setViewMode(mode.key)}
+                className="px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all"
+                style={{
+                  background: viewMode === mode.key ? CRIMSON : 'transparent',
+                  color: viewMode === mode.key ? 'white' : '#9ca3af',
+                }}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
+            style={{ background: 'rgba(209,18,67,0.08)', color: CRIMSON }}>
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400 absolute" />
+            {total > 0 ? 'Live Signals' : 'No Signals'}
+          </div>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard icon={TrendingUp} label="Total Signals" value={total} sub="Across all categories" color={CRIMSON} delay={0.05} />
-        <StatCard icon={Landmark} label="Gov't Updates" value={counts.govt} sub="ACRA · IRAS · MOM" color="#10b981" delay={0.1} />
-        <StatCard icon={Newspaper} label="News Items" value={counts.news} sub="BT · CNA · ST · AB" color="#3b82f6" delay={0.15} />
-        <StatCard icon={Building2} label="Competitor Intel" value={counts.competitor} sub="8 tracked companies" color="#f59e0b" delay={0.2} />
+        <StatCard icon={TrendingUp} label="Total Signals" value={total} sub={`${categoryCount} categories`} color={CRIMSON} delay={0.05} />
+        <StatCard icon={Landmark} label="Gov't Updates" value={counts.govt} sub={uniqueLabels(articlesByType.govt, 'source', 'No government data')} color="#10b981" delay={0.1} />
+        <StatCard icon={Newspaper} label="News Items" value={counts.news} sub={uniqueLabels(articlesByType.news, 'source', 'No news data')} color="#3b82f6" delay={0.15} />
+        <StatCard icon={Building2} label="Competitor Intel" value={counts.competitor} sub={uniqueLabels(articlesByType.competitor, 'source', 'No competitor data')} color="#f59e0b" delay={0.2} />
       </div>
 
       {/* NEW: Executive Briefing & Strategic Insights section */}
-      <InsightsCard counts={counts} total={total} />
+      <InsightsCard topArticles={topArticles} />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <DonutChart data={donutData} />
-        <SignalChart data={signalData} />
+        <SignalChart data={signalData} mode={viewMode} />
       </div>
 
       {/* Source Health */}
       <div className="bg-white rounded-xl p-4 sm:p-5 fade-in" style={{ animationDelay: '0.5s', boxShadow: '0 1px 12px rgba(209,18,67,0.06)', border: '1px solid rgba(209,18,67,0.08)' }}>
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Globe size={16} style={{ color: CRIMSON }} />
-          <span className="text-sm font-bold text-gray-700">Crawler Health</span>
+          <span className="text-sm font-bold text-gray-700">Data Source Health</span>
           <span className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(16,185,129,0.1)', color: '#059669' }}>
-            All Systems Go
+            style={{
+              background: total > 0 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+              color: total > 0 ? '#059669' : '#b45309',
+            }}>
+            {total > 0 ? 'Data Loaded' : 'No Data'}
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {sources.map((s, i) => <SourceCard key={i} {...s} />)}
+          {dynamicSources.map((s, i) => <SourceCard key={i} {...s} />)}
         </div>
       </div>
     </div>

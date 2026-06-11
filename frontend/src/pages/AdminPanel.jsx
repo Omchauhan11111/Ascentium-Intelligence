@@ -20,6 +20,13 @@ const TABS = [
   { key: 'stats',    label: 'Stats',    icon: BarChart3 }
 ];
 
+const N8N_WORKFLOWS = [
+  { key: 'news', label: 'News' },
+  { key: 'govt', label: 'Government' },
+  { key: 'competitor', label: 'Competitor' },
+  { key: 'evergreen', label: 'Evergreen' }
+];
+
 export default function AdminPanel() {
   const [tab, setTab] = useState('articles');
 
@@ -228,17 +235,17 @@ function ArticlesTab() {
 // =============== FETCH TAB ===============
 
 function FetchTab() {
-  const [status, setStatus] = useState({ isFetching: false });
+  const [n8nStatus, setN8nStatus] = useState({ isFetching: false, configured: {}, running: {} });
   const [lastLog, setLastLog] = useState(null);
-  const [starting, setStarting] = useState(false);
+  const [startingN8n, setStartingN8n] = useState('');
   const [msg, setMsg] = useState('');
 
   const refresh = useCallback(async () => {
-    const [s, l] = await Promise.all([
-      api.get('/admin/fetch/status'),
+    const [n, l] = await Promise.all([
+      api.get('/admin/n8n/status'),
       api.get('/admin/logs', { params: { limit: 1 } })
     ]);
-    setStatus(s.data);
+    setN8nStatus(n.data);
     setLastLog(l.data.items[0] || null);
   }, []);
 
@@ -248,18 +255,17 @@ function FetchTab() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  const fetchNow = async (types = null) => {
-    setStarting(true);
+  const runN8n = async (type) => {
+    setStartingN8n(type);
     setMsg('');
     try {
-      const body = types ? { types } : {};
-      await api.post('/admin/fetch', body);
-      setMsg('Fetch started in background. Refreshing logs every few seconds.');
+      await api.post('/admin/n8n/run', { type });
+      setMsg(`${type} n8n workflow started. Logs will refresh while it runs.`);
       refresh();
     } catch (e) {
       setMsg(`Error: ${e.message}`);
     } finally {
-      setStarting(false);
+      setStartingN8n('');
     }
   };
 
@@ -270,37 +276,45 @@ function FetchTab() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <div className="eyebrow mb-1">Manual fetch</div>
-            <h3 className="font-display text-2xl text-ink-800">Run scrapers now</h3>
+            <h3 className="font-display text-2xl text-ink-800">Run intelligence workflows</h3>
           </div>
           <span className={[
             'tag',
-            status.isFetching ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+            n8nStatus.isFetching ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
           ].join(' ')}>
-            {status.isFetching ? 'Running…' : 'Idle'}
+            {n8nStatus.isFetching ? 'Running...' : 'Idle'}
           </span>
         </div>
 
         <p className="text-sm text-ink-500 leading-relaxed mb-5">
-          Triggers an out-of-cycle scrape across all configured sources. Items are deduplicated automatically;
-          existing articles will not be re-saved.
+          Trigger n8n workflows on demand. The 7 AM scheduler can remain active in n8n; completed runs appear in Logs.
         </p>
 
         <div className="flex flex-wrap gap-2 mb-5">
-          <button onClick={() => fetchNow()} disabled={starting || status.isFetching} className="btn-primary">
-            {starting || status.isFetching ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            Fetch all
-          </button>
-          {['news', 'govt', 'competitor', 'evergreen'].map((t) => (
+          {N8N_WORKFLOWS.map((workflow) => {
+            const configured = Boolean(n8nStatus.configured?.[workflow.key]);
+            const running = Boolean(n8nStatus.running?.[workflow.key]);
+            const startingThis = startingN8n === workflow.key;
+            return (
             <button
-              key={t}
-              disabled={starting || status.isFetching}
-              onClick={() => fetchNow([t])}
-              className="btn-secondary capitalize"
+              key={workflow.key}
+              disabled={startingThis || running || !configured}
+              onClick={() => runN8n(workflow.key)}
+              className={workflow.key === 'news' ? 'btn-primary' : 'btn-secondary'}
+              title={configured ? `Run ${workflow.label} n8n workflow` : `${workflow.label} workflow URL is not configured yet`}
             >
-              {t}
+              {startingThis || running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              {workflow.label}
             </button>
-          ))}
+            );
+          })}
         </div>
+
+        {N8N_WORKFLOWS.some((workflow) => !n8nStatus.configured?.[workflow.key]) && (
+          <div className="text-[12px] text-amber-700 bg-amber-50 ring-1 ring-amber-100 px-3 py-2 rounded-md mb-5">
+            Add the remaining n8n webhook URLs in backend .env to enable disabled workflow buttons.
+          </div>
+        )}
 
         {msg && (
           <div className="text-[13px] text-ink-500 bg-ink-50 ring-1 ring-ink-100 rounded-md px-3 py-2">

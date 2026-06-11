@@ -6,12 +6,46 @@ const { NEWS_SOURCES, GOVT_SOURCES, COMPETITOR_SOURCES, EVERGREEN_TOPICS } = req
 
 const router = express.Router();
 const isAdminUser = (user) => ['admin', 'super_admin'].includes(user.role);
-const DEFAULT_ARTICLE_SORT = { relevanceScore: -1, effectiveDate: -1, fetchedAt: -1 };
+const DEFAULT_ARTICLE_SORT = { effectiveDay: -1, relevanceScore: -1, effectiveDate: -1 };
+const DASHBOARD_TIMEZONE = 'Asia/Singapore';
+
+function formatDashboardDate(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DASHBOARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
 
 function withEffectiveDateSort(match, extraStages = []) {
   return [
     { $match: match },
-    { $addFields: { effectiveDate: { $ifNull: ['$publishedAt', '$fetchedAt'] } } },
+    {
+      $addFields: {
+        effectiveDate: {
+          $convert: {
+            input: { $ifNull: ['$fetchedAt', '$publishedAt'] },
+            to: 'date',
+            onError: new Date(0),
+            onNull: new Date(0)
+          }
+        }
+      }
+    },
+    {
+      $addFields: {
+        effectiveDay: {
+          $dateToString: {
+            format: '%Y-%m-%d',
+            date: '$effectiveDate',
+            timezone: DASHBOARD_TIMEZONE
+          }
+        }
+      }
+    },
     { $sort: DEFAULT_ARTICLE_SORT },
     ...extraStages
   ];
@@ -120,34 +154,67 @@ router.get('/dashboard', protect, asyncHandler(async (req, res) => {
 // Returns real signal counts for the last 7 days using publishedAt when present, otherwise fetchedAt.
 router.get('/velocity', protect, asyncHandler(async (req, res) => {
   const baseQuery = buildQuery(req, { forUser: !isAdminUser(req.user) });
+  const datasetScope = req.query.scope === 'dataset';
   const now = new Date();
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - 6);
 
-  const rows = await Article.aggregate([
+  const pipeline = [
     { $match: baseQuery },
-    { $addFields: { effectiveDate: { $ifNull: ['$publishedAt', '$fetchedAt'] } } },
-    { $match: { effectiveDate: { $gte: start, $lte: now } } },
+    {
+      $addFields: {
+        effectiveDate: {
+          $convert: {
+            input: { $ifNull: ['$fetchedAt', '$publishedAt'] },
+            to: 'date',
+            onError: new Date(0),
+            onNull: new Date(0)
+          }
+        }
+      }
+    },
+  ];
+
+  if (!datasetScope) {
+    pipeline.push({ $match: { effectiveDate: { $gte: start, $lte: now } } });
+  }
+
+  pipeline.push(
     {
       $group: {
         _id: {
           $dateToString: {
             format: '%Y-%m-%d',
             date: '$effectiveDate',
-            timezone: 'Asia/Singapore'
+            timezone: DASHBOARD_TIMEZONE
           }
         },
         count: { $sum: 1 }
       }
-    }
-  ]);
+    },
+    { $sort: { _id: 1 } }
+  );
+
+  const rows = await Article.aggregate(pipeline);
+
+  if (datasetScope) {
+    const days = rows.map((row) => {
+      const date = new Date(`${row._id}T12:00:00.000Z`);
+      return {
+        date: row._id,
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+        count: row.count
+      };
+    });
+    return res.json({ days });
+  }
 
   const counts = Object.fromEntries(rows.map((row) => [row._id, row.count]));
   const days = Array.from({ length: 7 }).map((_, i) => {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
-    const key = date.toISOString().slice(0, 10);
+    const key = formatDashboardDate(date);
     return {
       date: key,
       day: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),

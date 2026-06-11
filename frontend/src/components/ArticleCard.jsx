@@ -1,148 +1,188 @@
-import { ExternalLink, Calendar, Tag, Globe } from 'lucide-react';
+import { ExternalLink, Clock3, Folder, Globe, MapPin, Tag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const TYPE_STYLES = {
-  news:       { label: 'News',       cls: 'tag-news',       accent: '#3b82f6',  accentBg: 'bg-blue-500'    },
-  govt:       { label: 'Government', cls: 'tag-govt',       accent: '#10b981',  accentBg: 'bg-emerald-500' },
-  competitor: { label: 'Competitor', cls: 'tag-competitor', accent: '#f59e0b',  accentBg: 'bg-orange-500'  },
-  evergreen:  { label: 'Evergreen',  cls: 'tag-evergreen',  accent: '#8b5cf6',  accentBg: 'bg-violet-500'  },
+  news:       { label: 'News',       accent: '#3b82f6' },
+  govt:       { label: 'Government', accent: '#10b981' },
+  competitor: { label: 'Competitor', accent: '#f59e0b' },
+  evergreen:  { label: 'Evergreen',  accent: '#8b5cf6' },
 };
 
-function GlobeIcon({ color = '#9ca3af', size = 12 }) {
+function formatDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-SG', {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function sourceHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (_err) {
+    return '';
+  }
+}
+
+function MetaPill({ icon: Icon, children, title, relaxed = false }) {
+  if (!children) return null;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
+    <span
+      className={[
+        'inline-flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-[10px] font-bold text-gray-500 ring-1 ring-gray-100',
+        relaxed ? 'normal-case tracking-normal' : 'uppercase tracking-wider',
+      ].join(' ')}
+      title={title || String(children)}
+    >
+      <Icon size={11} className="shrink-0 text-gray-400" />
+      <span className={relaxed ? 'whitespace-normal leading-snug' : 'truncate'}>{children}</span>
+    </span>
   );
 }
 
 export default function ArticleCard({
   item,
-  compact    = false,
+  compact = false,
   selectable = false,
-  selected   = false,
+  selected = false,
   onSelect,
   adminActions = null,
 }) {
-  const t    = TYPE_STYLES[item.type] || TYPE_STYLES.news;
+  const typeStyle = TYPE_STYLES[item.type] || TYPE_STYLES.news;
   const score = Math.round(Number(item.relevanceScore || 0));
-  const when = item.fetchedAt
-    ? formatDistanceToNow(new Date(item.fetchedAt), { addSuffix: true })
+  const effectiveDate = item.fetchedAt || item.publishedAt;
+  const when = effectiveDate
+    ? formatDistanceToNow(new Date(effectiveDate), { addSuffix: true })
     : '';
+  const updatedAt = item.fetchedAt ? formatDateTime(item.fetchedAt) : '';
+  const updatedLabel = when ? `Updated ${when}` : updatedAt ? `Updated ${updatedAt}` : '';
+  const summary = item.summary || item.aiSummary;
+  const source = item.source || sourceHost(item.url) || 'Unknown source';
+  const country = item.country || item.market || 'Not specified';
+  const host = sourceHost(item.url);
 
   return (
     <article
       className={[
-        'group relative flex flex-col transition-all duration-300 fade-in',
-        'rounded-xl bg-white overflow-hidden isolate',
-        compact ? 'p-3.5' : 'p-5',
+        'group relative isolate flex flex-col overflow-hidden rounded-lg bg-white fade-in',
+        'transition-all duration-200',
+        compact ? 'p-4' : 'p-5',
         selected ? 'ring-2 ring-brand-crimson/40' : '',
       ].join(' ')}
       style={{
-        boxShadow: '0 1px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(209,18,67,0.06)',
-        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(15,23,42,0.08)',
       }}
       onMouseOver={e => {
         if (window.matchMedia('(hover: hover)').matches) {
-          e.currentTarget.style.transform = 'translateY(-3px)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
         }
-        e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.08), 0 0 0 1px ${t.accent}30`;
+        e.currentTarget.style.boxShadow = `0 12px 28px rgba(15,23,42,0.08), 0 0 0 1px ${typeStyle.accent}30`;
       }}
       onMouseOut={e => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 1px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(209,18,67,0.06)';
+        e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(15,23,42,0.07)';
       }}
     >
-      {/* Left colour accent */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3.5px] rounded-l-xl opacity-50 group-hover:opacity-100 transition-all duration-300"
-        style={{ background: `linear-gradient(180deg, ${t.accent}, ${t.accent}66)` }}
-      />
+      <div className="absolute left-0 top-0 h-full w-1 opacity-90" style={{ background: typeStyle.accent }} />
 
-      {/* Tags row */}
-      <div className="flex items-start justify-between gap-2 mb-3 pl-3">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className={`tag ${t.cls} shrink-0`}>{t.label}</span>
-          {item.category && item.category !== 'General' && (
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium truncate flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-gray-300" />
-              {item.category}
+      <div className="mb-3 flex items-start justify-between gap-3 pl-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span
+            className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
+            style={{ color: typeStyle.accent, background: `${typeStyle.accent}12`, border: `1px solid ${typeStyle.accent}24` }}
+          >
+            {typeStyle.label}
+          </span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {score > 0 && (
+            <span
+              className="rounded-md px-2 py-1 text-[10px] font-black tracking-wide"
+              style={{ color: typeStyle.accent, background: `${typeStyle.accent}12`, border: `1px solid ${typeStyle.accent}22` }}
+              title="Relevance score"
+            >
+              {score}
             </span>
           )}
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onSelect?.(item._id)}
+              className="mt-0.5 rounded border-gray-200 text-brand-crimson focus:ring-brand-crimson/30"
+            />
+          )}
         </div>
-        {score > 0 && (
-          <span
-            className="shrink-0 rounded-md px-2 py-1 text-[10px] font-black tracking-wide"
-            style={{ color: t.accent, background: `${t.accent}12`, border: `1px solid ${t.accent}22` }}
-            title="Relevance score"
-          >
-            {score}
+      </div>
+
+      <div className="mb-3 flex min-w-0 flex-wrap gap-1.5 pl-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {item.category && item.category !== 'General' && (
+          <span className="inline-flex max-w-full items-center gap-1 rounded-md bg-gray-50 px-2 py-1 ring-1 ring-gray-100">
+            <Folder size={11} className="shrink-0" />
+            <span className="truncate">{item.category}</span>
           </span>
         )}
-        {selectable && (
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onSelect?.(item._id)}
-            className="rounded border-gray-200 text-brand-crimson focus:ring-brand-crimson/30 mt-0.5 shrink-0"
-          />
+        {item.subcategory && (
+          <span className="inline-flex max-w-full items-center gap-1 rounded-md bg-gray-50 px-2 py-1 ring-1 ring-gray-100">
+            <Tag size={11} className="shrink-0" />
+            <span className="truncate">{item.subcategory}</span>
+          </span>
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="text-[14px] sm:text-[15px] leading-snug text-gray-800 group-hover:text-brand-crimson transition-colors duration-200 mb-2.5 pl-3 font-bold">
+      <h3 className="mb-2.5 pl-3 text-[15px] font-black leading-snug text-gray-900 transition-colors duration-200 group-hover:text-brand-crimson">
         <a
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:underline decoration-brand-crimson/30 underline-offset-2 line-clamp-3"
+          className="line-clamp-3 hover:underline decoration-brand-crimson/30 underline-offset-2"
         >
           {item.title}
         </a>
       </h3>
 
-      {/* Summary */}
-      {(item.summary || item.aiSummary) && (
-        <p className="text-[12px] sm:text-[13px] text-gray-500 leading-relaxed mb-4 pl-3 line-clamp-2 flex-1">
-          {item.summary || item.aiSummary}
+      {summary && (
+        <p className="mb-4 flex-1 pl-3 text-[13px] leading-relaxed text-gray-500 line-clamp-3">
+          {summary}
         </p>
       )}
 
-      {/* Footer meta */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pl-3 mt-auto pt-3 border-t border-gray-100">
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[11px] text-gray-400 min-w-0">
-          {/* Source with Globe icon */}
-          <span className="flex items-center gap-1.5 font-semibold text-gray-600 truncate max-w-[120px] sm:max-w-none">
-            <GlobeIcon color={t.accent} size={12} />
-            {item.source || 'Unknown Source'}
-          </span>
-          {when && (
-            <span className="flex items-center gap-1 shrink-0 text-gray-400">
-              <Calendar size={10} />{when}
-            </span>
-          )}
-          {item.subcategory && (
-            <span className="hidden lg:flex items-center gap-1 shrink-0 text-gray-400">
-              <Tag size={10} />{item.subcategory}
-            </span>
-          )}
+      <div className="mt-auto border-t border-gray-100 pl-3 pt-3">
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          <MetaPill icon={MapPin} title="Country">{country}</MetaPill>
+          <MetaPill icon={Globe} title={`Source: ${source}`}>{source}</MetaPill>
         </div>
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 hover:text-brand-crimson hover:bg-brand-pink/30 transition-all shrink-0 self-end sm:self-auto"
-          title="Open source"
-        >
-          <ExternalLink size={13} />
-        </a>
+        <div className="mb-3">
+          <MetaPill icon={Clock3} title={updatedAt ? `Updated ${updatedAt}` : updatedLabel} relaxed>
+            {updatedLabel}
+          </MetaPill>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2 ring-1 ring-gray-100 transition-colors group-hover:bg-white">
+          <div className="min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">Source domain</div>
+            <div className="truncate text-[11px] font-bold text-gray-500">{host || item.url}</div>
+          </div>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-brand-pink/50"
+            style={{ color: typeStyle.accent }}
+            title="Open source article"
+          >
+            Source <ExternalLink size={12} />
+          </a>
+        </div>
       </div>
 
-      {/* Admin actions */}
       {adminActions && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2 pl-3">
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pl-3 pt-3">
           {adminActions}
         </div>
       )}

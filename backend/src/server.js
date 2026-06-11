@@ -12,6 +12,7 @@ const cronRunner = require('./jobs/cron');
 const authRoutes = require('./routes/auth');
 const articleRoutes = require('./routes/articles');
 const adminRoutes = require('./routes/admin');
+const n8nRoutes = require('./routes/n8n');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 
@@ -64,6 +65,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/n8n', n8nRoutes);
 
 // --------- 404 + Error ---------
 app.use((req, res) => res.status(404).json({ message: `Not found: ${req.method} ${req.path}` }));

@@ -9,9 +9,15 @@ const mongoose = require('mongoose');
  */
 const fetchLogSchema = new mongoose.Schema(
   {
+    runId: {
+      type: String,
+      default: () => new mongoose.Types.ObjectId().toString(),
+      index: true
+    },
+
     triggeredBy: {
       type: String,
-      enum: ['cron', 'manual', 'system'],
+      enum: ['cron', 'manual', 'system', 'n8n'],
       required: true,
       index: true
     },

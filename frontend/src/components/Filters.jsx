@@ -3,6 +3,7 @@ import api from '../api/axios';
 import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 const CRIMSON = '#D11243';
+const COUNTRY_OPTIONS = ['Singapore', 'Hong Kong', 'China'];
 
 export default function Filters({ initial = {}, onChange, showAdmin = false }) {
   const [meta, setMeta] = useState(null);
@@ -11,6 +12,7 @@ export default function Filters({ initial = {}, onChange, showAdmin = false }) {
     category: '',
     subcategory: '',
     source: '',
+    country: '',
     from: '',
     to: '',
     q: '',
@@ -44,7 +46,7 @@ export default function Filters({ initial = {}, onChange, showAdmin = false }) {
   };
 
   const reset = () => {
-    const blank = { type: '', category: '', subcategory: '', source: '', from: '', to: '', q: '', publishedOnly: '' };
+    const blank = { type: '', category: '', subcategory: '', source: '', country: '', from: '', to: '', q: '', publishedOnly: '' };
     setFilters(blank);
     onChange?.(blank);
   };
@@ -155,7 +157,7 @@ export default function Filters({ initial = {}, onChange, showAdmin = false }) {
           </div>
 
           {/* Row 2 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-1.5">Category</label>
               <select style={inputBase} value={filters.category} onChange={(e) => update('category', e.target.value)}
@@ -177,6 +179,16 @@ export default function Filters({ initial = {}, onChange, showAdmin = false }) {
               >
                 <option value="">All</option>
                 {subcatOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-1.5">Country</label>
+              <select style={inputBase} value={filters.country} onChange={(e) => update('country', e.target.value)}
+                onFocus={handleFocus} onBlur={handleBlur}>
+                <option value="">All countries</option>
+                {COUNTRY_OPTIONS.map((country) => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
               </select>
             </div>
             <div>
