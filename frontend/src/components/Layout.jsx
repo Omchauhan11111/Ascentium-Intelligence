@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Shield, User as UserIcon, LogOut, ChevronLeft, Bell, Menu
+  LayoutDashboard, Shield, User as UserIcon, LogOut, ChevronLeft, Bell, Menu, Newspaper
 } from 'lucide-react';
 
 const CRIMSON = '#D11243';
@@ -37,10 +37,16 @@ function BoostUpRocketIcon({ className = 'w-5 h-5' }) {
   );
 }
 
-function SideNavItem({ icon: Icon, label, to }) {
+function SideNavItem({ icon: Icon, label, to, onActiveClick }) {
   return (
     <NavLink
       to={to}
+      onClick={(event) => {
+        if (onActiveClick && window.location.pathname.startsWith(to)) {
+          event.preventDefault();
+          onActiveClick();
+        }
+      }}
       className={({ isActive }) =>
         `w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-all duration-150 group ${
           isActive ? 'bg-brand-pink/60 text-brand-crimson font-bold shadow-sm' : 'text-gray-500 hover:bg-brand-pink/20 hover:text-gray-800'
@@ -205,12 +211,17 @@ export default function Layout({ children }) {
     const path = location.pathname;
     if (path.startsWith('/admin')) return 'Admin Panel';
     if (path.startsWith('/profile')) return 'Profile Settings';
+    if (path.startsWith('/intel-desk')) return 'Intel Desk';
     return 'Dashboard';
   };
 
   const initials = user?.name 
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) 
     : 'U';
+
+  const toggleRoute = (path) => {
+    navigate(location.pathname.startsWith(path) ? '/dashboard' : path);
+  };
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-gray-50 overflow-hidden" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>
@@ -241,7 +252,7 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside
         className="hidden md:flex h-full flex-col bg-white border-r border-gray-100 transition-all duration-300 shrink-0 shadow-sm"
-        style={{ width: collapsed ? '56px' : '220px', minWidth: collapsed ? '56px' : '220px' }}
+        style={{ width: collapsed ? '60px' : '232px', minWidth: collapsed ? '60px' : '232px' }}
       >
         {/* Collapse toggle / logo */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
@@ -317,12 +328,16 @@ export default function Layout({ children }) {
                 className={`w-10 h-10 flex justify-center items-center rounded-lg transition-all mx-auto ${location.pathname.startsWith('/dashboard') ? 'bg-brand-pink/30 text-brand-crimson font-bold' : 'text-gray-500 hover:bg-gray-100'}`}>
                 <LayoutDashboard size={16} />
               </button>
+              <button onClick={() => navigate('/intel-desk')} title="Intel Desk"
+                className={`w-10 h-10 flex justify-center items-center rounded-lg transition-all mx-auto ${location.pathname.startsWith('/intel-desk') ? 'bg-brand-pink/30 text-brand-crimson font-bold' : 'text-gray-500 hover:bg-gray-100'}`}>
+                <Newspaper size={16} />
+              </button>
               <button onClick={() => navigate('/profile')} title="Profile"
                 className={`w-10 h-10 flex justify-center items-center rounded-lg transition-all mx-auto ${location.pathname.startsWith('/profile') ? 'bg-brand-pink/30 text-brand-crimson font-bold' : 'text-gray-500 hover:bg-gray-100'}`}>
                 <UserIcon size={16} />
               </button>
               {isAdmin && (
-                <button onClick={() => navigate('/admin')} title="Admin"
+                <button onClick={() => toggleRoute('/admin')} title="Admin"
                   className={`w-10 h-10 flex justify-center items-center rounded-lg transition-all mx-auto ${location.pathname.startsWith('/admin') ? 'bg-brand-pink/30 text-brand-crimson font-bold' : 'text-gray-500 hover:bg-gray-100'}`}>
                   <Shield size={16} />
                 </button>
@@ -331,9 +346,10 @@ export default function Layout({ children }) {
           ) : (
             <>
               <SideNavItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" />
+              <SideNavItem icon={Newspaper} label="Intel Desk" to="/intel-desk" />
               <SideNavItem icon={UserIcon} label="Profile" to="/profile" />
               {isAdmin && (
-                <SideNavItem icon={Shield} label="Admin" to="/admin" />
+                <SideNavItem icon={Shield} label="Admin" to="/admin" onActiveClick={() => navigate('/dashboard')} />
               )}
             </>
           )}
@@ -359,7 +375,7 @@ export default function Layout({ children }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header */}
-        <header className="hidden md:flex shrink-0 bg-white border-b border-gray-100 items-center justify-between px-5 py-4"
+        <header className="hidden md:flex shrink-0 bg-white border-b border-gray-100 items-center justify-between px-6 py-3"
           style={{ boxShadow: '0 1px 0 rgba(209,18,67,0.06)' }}>
           <div className="flex items-center gap-3">
             <span className="text-base font-bold text-gray-800">{getPageTitle()}</span>
@@ -409,24 +425,28 @@ export default function Layout({ children }) {
         </header>
 
         {/* Content Body: added padding so it doesn't touch the screen edges */}
-        <main className="flex-1 min-h-0 overflow-y-auto bg-canvas p-3 sm:p-4 lg:p-5 pb-20 md:pb-5 transition-all duration-300">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-canvas px-3 pt-3 pb-20 sm:px-5 sm:pt-4 md:pb-5 lg:px-6 lg:pt-4 transition-all duration-300">
           <div className="w-full h-full">
             {children}
           </div>
         </main>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 px-2 py-2 grid grid-cols-3 gap-1">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 px-2 py-2 grid grid-cols-4 gap-1">
         <button onClick={() => navigate('/dashboard')} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-bold ${location.pathname.startsWith('/dashboard') ? 'text-brand-crimson bg-brand-pink/30' : 'text-gray-500'}`}>
           <LayoutDashboard size={16} />
           Dashboard
+        </button>
+        <button onClick={() => navigate('/intel-desk')} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-bold ${location.pathname.startsWith('/intel-desk') ? 'text-brand-crimson bg-brand-pink/30' : 'text-gray-500'}`}>
+          <Newspaper size={16} />
+          Intel
         </button>
         <button onClick={() => navigate('/profile')} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-bold ${location.pathname.startsWith('/profile') ? 'text-brand-crimson bg-brand-pink/30' : 'text-gray-500'}`}>
           <UserIcon size={16} />
           Profile
         </button>
         {isAdmin ? (
-          <button onClick={() => navigate('/admin')} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-bold ${location.pathname.startsWith('/admin') ? 'text-brand-crimson bg-brand-pink/30' : 'text-gray-500'}`}>
+          <button onClick={() => toggleRoute('/admin')} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-bold ${location.pathname.startsWith('/admin') ? 'text-brand-crimson bg-brand-pink/30' : 'text-gray-500'}`}>
             <Shield size={16} />
             Admin
           </button>

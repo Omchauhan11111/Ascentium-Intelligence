@@ -16,7 +16,7 @@ export default function BoostUpLogo({ variant = 'dark', className = '' }) {
         <text 
           x="10" 
           y="42" 
-          fontFamily="system-ui, -apple-system, sans-serif" 
+          fontFamily="DM Sans, system-ui, sans-serif"
           fontWeight="900" 
           fontSize="36" 
           className={`fill-current ${textColorMain}`}
@@ -56,7 +56,7 @@ export default function BoostUpLogo({ variant = 'dark', className = '' }) {
         <text 
           x="10" 
           y="24" 
-          fontFamily="system-ui, -apple-system, sans-serif" 
+          fontFamily="DM Sans, system-ui, sans-serif"
           fontWeight="800" 
           fontSize="15" 
           className={`fill-current ${textColorBy}`}
@@ -94,7 +94,7 @@ export default function BoostUpLogo({ variant = 'dark', className = '' }) {
         <text 
           x="75" 
           y="24" 
-          fontFamily="system-ui, -apple-system, sans-serif" 
+          fontFamily="DM Sans, system-ui, sans-serif"
           fontWeight="800" 
           fontSize="14.5" 
           className={`fill-current ${textColorSub}`}
@@ -107,7 +107,7 @@ export default function BoostUpLogo({ variant = 'dark', className = '' }) {
         <text 
           x="245" 
           y="16" 
-          fontFamily="system-ui, -apple-system, sans-serif" 
+          fontFamily="DM Sans, system-ui, sans-serif"
           fontWeight="bold" 
           fontSize="7" 
           className={`fill-current ${textColorSub}`}

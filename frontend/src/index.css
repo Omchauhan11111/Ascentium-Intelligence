@@ -18,8 +18,8 @@
     -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4, h5 {
-    font-family: theme('fontFamily.display');
-    letter-spacing: -0.015em;
+    font-family: inherit;
+    letter-spacing: 0;
     color: theme('colors.ink.800');
   }
   /* Custom scrollbar - subtle */
@@ -90,7 +90,7 @@
   }
 
   .section-title {
-    @apply font-display text-2xl text-ink-800 tracking-tightest;
+    @apply font-display text-2xl text-ink-800;
   }
   .eyebrow {
     @apply text-[10px] uppercase tracking-[0.18em] font-semibold text-brand-crimson;

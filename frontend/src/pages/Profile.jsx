@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Layout from '../components/Layout';
-import { Save, Lock, Check, Loader2, Camera } from 'lucide-react';
+import { Save, Lock, Check, Loader2, Camera, Shield, Mail, Building2, Briefcase, User, Trash2 } from 'lucide-react';
 
 const roleLabel = (role) => {
   if (role === 'super_admin') return 'Super Admin';
@@ -96,121 +96,183 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="max-w-3xl space-y-6 pb-10">
-        <div>
-          <div className="eyebrow mb-2">Account Settings</div>
-          <h1 className="section-title mb-1 text-2xl sm:text-3xl font-bold">Profile Settings</h1>
-          <p className="text-ink-400 text-sm">Update your personal information and security credentials.</p>
+      <div className="space-y-5 pb-10">
+        <div className="rounded-lg border border-gray-100 bg-white px-4 py-4 shadow-card sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="eyebrow mb-1">Account settings</div>
+              <h1 className="text-2xl font-black tracking-tight text-gray-900">Profile Settings</h1>
+              <p className="mt-1 text-sm text-gray-500">Manage your identity, workspace details, and password security.</p>
+            </div>
+            <span className="w-fit rounded-md bg-brand-pink/60 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-brand-crimson ring-1 ring-brand-crimson/10">
+              {roleLabel(user?.role)}
+            </span>
+          </div>
         </div>
 
         {err && (
-          <div className="mb-6 text-[13px] text-red-700 bg-red-50 ring-1 ring-red-200 rounded-md px-3 py-2 animate-pulse">
+          <div className="rounded-md bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-700 ring-1 ring-red-200">
             {err}
           </div>
         )}
 
-        {/* Profile form */}
-        <form onSubmit={saveProfile} className="card p-4 sm:p-6 border border-gray-100 hover:border-brand-crimson/20 transition-all">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6 pb-6 border-b border-gray-100/50">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="relative group">
-                {avatar ? (
-                  <img src={avatar} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md" alt="Profile" />
-                ) : (
-                  <div className="w-16 h-16 rounded-full text-white font-display text-2xl font-black flex items-center justify-center shadow-sm"
-                    style={{ background: 'linear-gradient(135deg, #D11243, #8F0B2F)' }}>
-                    {(user?.name || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-                <label htmlFor="avatar-file" className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-all font-semibold">
-                  <Camera size={16} className="mb-0.5" />
-                  Change
-                </label>
-                <input type="file" id="avatar-file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              </div>
-              <div className="min-w-0">
-                <div className="font-bold text-gray-800 text-base truncate">{user?.name || 'User'}</div>
-                <div className="text-sm text-gray-400 truncate">{user?.email}</div>
-                <div className="text-[10px] uppercase tracking-[0.18em] font-semibold text-brand-crimson mt-0.5">
-                  {roleLabel(user?.role)}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_1fr]">
+          <aside className="space-y-5">
+            <div className="overflow-hidden rounded-lg border border-gray-100 bg-white shadow-card">
+              <div className="h-20 bg-gradient-to-r from-brand-crimson to-brand-hoverred" />
+              <div className="-mt-10 px-5 pb-5">
+                <div className="relative mb-4 h-20 w-20">
+                  {avatar ? (
+                    <img src={avatar} className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-md" alt="Profile" />
+                  ) : (
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-brand-crimson text-2xl font-black text-white shadow-md">
+                      {(user?.name || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <label htmlFor="avatar-file" className="absolute bottom-0 right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-brand-crimson shadow-md ring-1 ring-gray-100 transition-all hover:bg-brand-pink">
+                    <Camera size={15} />
+                  </label>
+                  <input type="file" id="avatar-file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-xl font-black tracking-tight text-gray-900">{user?.name || 'User'}</div>
+                  <div className="truncate text-sm font-medium text-gray-400">{user?.email}</div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <InfoTile icon={Shield} label="Role" value={roleLabel(user?.role)} />
+                  <InfoTile icon={Building2} label="Company" value={form.company || 'Not set'} />
+                  <InfoTile icon={Briefcase} label="Designation" value={form.designation || 'Not set'} />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <label htmlFor="avatar-file" className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-brand-crimson px-3 py-2 text-xs font-black text-white transition-all hover:bg-brand-hoverred">
+                    <Camera size={14} />
+                    Upload photo
+                  </label>
+                  {avatar && (
+                    <button type="button" onClick={handleRemoveImage} className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-xs font-black text-red-600 ring-1 ring-red-100 transition-all hover:bg-red-100">
+                      <Trash2 size={14} />
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="avatar-file" className="btn-secondary text-xs px-3 py-2 cursor-pointer font-semibold shadow-sm">
-                Upload Photo
-              </label>
-              {avatar && (
-                <button type="button" onClick={handleRemoveImage} className="btn-danger text-xs px-3 py-2 font-semibold">
-                  Remove
+
+            <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-card">
+              <div className="mb-3 flex items-center gap-2">
+                <Lock size={16} className="text-brand-crimson" />
+                <h3 className="text-base font-black tracking-tight text-gray-900">Security posture</h3>
+              </div>
+              <p className="text-sm leading-relaxed text-gray-500">
+                Keep your password current and avoid sharing admin credentials across users.
+              </p>
+              <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-100">
+                Account active
+              </div>
+            </div>
+          </aside>
+
+          <div className="space-y-5">
+            <form onSubmit={saveProfile} className="rounded-lg border border-gray-100 bg-white p-4 shadow-card sm:p-5">
+              <div className="mb-5 flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                <div>
+                  <div className="eyebrow mb-1">Personal information</div>
+                  <h3 className="text-xl font-black tracking-tight text-gray-900">Account details</h3>
+                  <p className="mt-1 text-sm text-gray-500">These details appear in the admin console and user directory.</p>
+                </div>
+                <User size={18} className="text-gray-400" />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="label">Full name</label>
+                  <input className="input focus:ring-brand-crimson/30" value={form.name} onChange={(e) => update('name', e.target.value)} required />
+                </div>
+                <div>
+                  <label className="label">Email address</label>
+                  <div className="flex items-center gap-2 rounded-md bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-500 ring-1 ring-gray-100">
+                    <Mail size={14} className="text-gray-400" />
+                    <span className="truncate">{user?.email}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Company</label>
+                  <input className="input focus:ring-brand-crimson/30" value={form.company} onChange={(e) => update('company', e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Designation</label>
+                  <input className="input focus:ring-brand-crimson/30" value={form.designation} onChange={(e) => update('designation', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-crimson px-4 py-2.5 text-sm font-black text-white transition-all hover:bg-brand-hoverred disabled:opacity-60" disabled={loadingProfile}>
+                  {loadingProfile ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save profile
                 </button>
-              )}
-            </div>
-          </div>
+                {savedProfile && (
+                  <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
+                    <Check size={14} /> Saved
+                  </span>
+                )}
+              </div>
+            </form>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Full name</label>
-              <input className="input focus:ring-brand-crimson/30" value={form.name} onChange={(e) => update('name', e.target.value)} required />
-            </div>
-            <div>
-              <label className="label">Company</label>
-              <input className="input focus:ring-brand-crimson/30" value={form.company} onChange={(e) => update('company', e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Designation</label>
-              <input className="input focus:ring-brand-crimson/30" value={form.designation} onChange={(e) => update('designation', e.target.value)} />
-            </div>
-          </div>
+            <form onSubmit={changePwd} className="rounded-lg border border-gray-100 bg-white p-4 shadow-card sm:p-5">
+              <div className="mb-5 flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                <div>
+                  <div className="eyebrow mb-1">Security</div>
+                  <h3 className="text-xl font-black tracking-tight text-gray-900">Password credentials</h3>
+                  <p className="mt-1 text-sm text-gray-500">Use a strong password with at least 6 characters.</p>
+                </div>
+                <Lock size={18} className="text-gray-400" />
+              </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
-            <button className="btn-primary px-5" style={{ background: 'linear-gradient(90deg, #D11243, #8F0B2F)' }} disabled={loadingProfile}>
-              {loadingProfile ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              Save profile
-            </button>
-            {savedProfile && (
-              <span className="text-emerald-600 text-sm flex items-center gap-1 font-bold animate-bounce">
-                <Check size={14} /> Saved
-              </span>
-            )}
-          </div>
-        </form>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <label className="label">Current password</label>
+                  <input type="password" className="input focus:ring-brand-crimson/30" value={pwd.currentPassword} onChange={(e) => setPwd({ ...pwd, currentPassword: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="label">New password</label>
+                  <input type="password" minLength={6} className="input focus:ring-brand-crimson/30" value={pwd.newPassword} onChange={(e) => setPwd({ ...pwd, newPassword: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="label">Confirm password</label>
+                  <input type="password" minLength={6} className="input focus:ring-brand-crimson/30" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} required />
+                </div>
+              </div>
 
-        {/* Password form */}
-        <form onSubmit={changePwd} className="card p-4 sm:p-6 border border-gray-100 hover:border-brand-crimson/20 transition-all">
-          <div className="flex items-center gap-2 mb-6">
-            <Lock size={16} className="text-brand-crimson" />
-            <h3 className="font-display text-xl text-ink-800 font-bold">Security</h3>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-crimson px-4 py-2.5 text-sm font-black text-white transition-all hover:bg-brand-hoverred disabled:opacity-60" disabled={loadingPwd}>
+                  {loadingPwd ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
+                  Update password
+                </button>
+                {savedPwd && (
+                  <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
+                    <Check size={14} /> Updated
+                  </span>
+                )}
+              </div>
+            </form>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="label">Current password</label>
-              <input type="password" className="input focus:ring-brand-crimson/30" value={pwd.currentPassword} onChange={(e) => setPwd({ ...pwd, currentPassword: e.target.value })} required />
-            </div>
-            <div>
-              <label className="label">New password</label>
-              <input type="password" minLength={6} className="input focus:ring-brand-crimson/30" value={pwd.newPassword} onChange={(e) => setPwd({ ...pwd, newPassword: e.target.value })} required />
-            </div>
-            <div>
-              <label className="label">Confirm password</label>
-              <input type="password" minLength={6} className="input focus:ring-brand-crimson/30" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} required />
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
-            <button className="btn-primary px-5" style={{ background: 'linear-gradient(90deg, #D11243, #8F0B2F)' }} disabled={loadingPwd}>
-              {loadingPwd ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
-              Update password
-            </button>
-            {savedPwd && (
-              <span className="text-emerald-600 text-sm flex items-center gap-1 font-bold animate-bounce">
-                <Check size={14} /> Updated
-              </span>
-            )}
-          </div>
-        </form>
+        </div>
       </div>
     </Layout>
+  );
+}
+
+function InfoTile({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 ring-1 ring-gray-100">
+      <Icon size={14} className="shrink-0 text-gray-400" />
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-wider text-gray-400">{label}</div>
+        <div className="truncate text-sm font-bold text-gray-800">{value}</div>
+      </div>
+    </div>
   );
 }

@@ -23,6 +23,14 @@ export default function App() {
         }
       />
       <Route
+        path="/intel-desk"
+        element={
+          <ProtectedRoute>
+            <Dashboard initialTab="feed" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <ProtectedRoute requireAdmin>
