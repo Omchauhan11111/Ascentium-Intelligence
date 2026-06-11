@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { TrendingUp, Newspaper, Landmark, Building2, BarChart2, Activity, Globe, Sparkles, ExternalLink, Clock3, MapPin, Tag, Flame } from 'lucide-react';
 
@@ -532,6 +532,36 @@ function UpdateRow({ item }) {
 function TrendingUpdatesCard({ items, className = '' }) {
   const visibleItems = useMemo(() => shuffleSignals(items.slice(0, 20)), [items]);
   const marqueeItems = visibleItems.length > 3 ? [...visibleItems, ...shuffleSignals(visibleItems)] : visibleItems;
+  const scrollRef = useRef(null);
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || visibleItems.length <= 3) return undefined;
+
+    let animationFrame;
+    let previousTime;
+
+    const move = (time) => {
+      if (previousTime === undefined) previousTime = time;
+
+      const loopHeight = scroller.scrollHeight / 2;
+      if (!pausedRef.current && loopHeight > 0) {
+        const pixelsPerMillisecond = loopHeight / 36000;
+        scroller.scrollTop += (time - previousTime) * pixelsPerMillisecond;
+
+        if (scroller.scrollTop >= loopHeight) {
+          scroller.scrollTop -= loopHeight;
+        }
+      }
+
+      previousTime = time;
+      animationFrame = window.requestAnimationFrame(move);
+    };
+
+    animationFrame = window.requestAnimationFrame(move);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [visibleItems]);
 
   return (
     <section className={`relative overflow-hidden rounded-lg border border-gray-100 bg-white p-4 shadow-card sm:p-5 ${className}`}>
@@ -549,11 +579,16 @@ function TrendingUpdatesCard({ items, className = '' }) {
         </span>
       </div>
 
-      <div className="hide-scrollbar relative min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-50/40 p-2 ring-1 ring-gray-100">
+      <div
+        ref={scrollRef}
+        className="hide-scrollbar relative min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-50/40 p-2 ring-1 ring-gray-100"
+        onMouseEnter={() => { pausedRef.current = true; }}
+        onMouseLeave={() => { pausedRef.current = false; }}
+      >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-gray-50/95 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10 bg-gradient-to-t from-gray-50/95 to-transparent" />
         {marqueeItems.length ? (
-          <div className={`space-y-2 ${visibleItems.length > 3 ? 'insight-marquee' : ''}`}>
+          <div className="space-y-2">
             {marqueeItems.map((item, index) => (
               <UpdateRow
                 key={`${item._id || item.url || index}-${index}`}
@@ -575,19 +610,19 @@ function CategoryMomentumCard({ categories, className = '' }) {
   const max = Math.max(...categories.map((item) => item.count), 1);
 
   return (
-    <section className={`rounded-lg border border-gray-100 bg-white p-3 shadow-card sm:p-4 ${className}`}>
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles size={16} className="text-brand-crimson" />
+    <section className={`rounded-lg border border-gray-100 bg-white p-3 shadow-card lg:p-[clamp(0.65rem,1.4vh,1rem)] ${className}`}>
+      <div className="mb-[clamp(0.35rem,1vh,0.75rem)] flex shrink-0 items-center gap-2">
+        <Sparkles size={15} className="shrink-0 text-brand-crimson" />
         <h3 className="text-sm font-black text-gray-900">Category Momentum</h3>
       </div>
-      <div className="min-h-0 flex-1 space-y-[clamp(0.25rem,0.7vh,0.5rem)] overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-rows-5 gap-[clamp(0.1rem,0.45vh,0.35rem)] overflow-hidden">
         {categories.length ? categories.map((item) => (
-          <div key={item.label}>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="truncate text-[12px] font-bold text-gray-700">{item.label}</span>
-              <span className="text-[10px] font-black text-gray-400">{item.count}</span>
+          <div key={item.label} className="flex min-h-0 flex-col justify-center">
+            <div className="mb-[clamp(0.1rem,0.35vh,0.25rem)] flex items-center justify-between gap-2">
+              <span className="truncate text-[clamp(10px,1.45vh,12px)] font-bold leading-none text-gray-700">{item.label}</span>
+              <span className="shrink-0 text-[10px] font-black leading-none text-gray-400">{item.count}</span>
             </div>
-            <div className="h-[clamp(0.3rem,0.65vh,0.45rem)] rounded-full bg-gray-100">
+            <div className="h-[clamp(0.2rem,0.55vh,0.4rem)] shrink-0 rounded-full bg-gray-100">
               <div className="h-full rounded-full bg-brand-crimson" style={{ width: `${Math.round((item.count / max) * 100)}%` }} />
             </div>
           </div>
@@ -635,23 +670,24 @@ function MarketDistributionCard({ markets, className = '' }) {
       <div className="grid min-h-0 flex-1 grid-rows-3 gap-[clamp(0.35rem,0.8vh,0.5rem)] overflow-hidden">
         {markets.length ? markets.map((market, index) => {
           const pct = Math.round((market.count / max) * 100);
+          const color = index === 0 ? CRIMSON : index === 1 ? '#10b981' : index === 2 ? '#3b82f6' : '#f59e0b';
           return (
-            <div key={market.market} className="flex min-h-0 flex-col justify-center rounded-lg border border-gray-100 px-3 py-[clamp(0.35rem,0.8vh,0.5rem)]">
-              <div className="mb-[clamp(0.25rem,0.7vh,0.375rem)] flex items-center justify-between gap-3">
-                <div className="min-w-0">
+            <div key={market.market} className="flex min-h-0 flex-col justify-center rounded-lg border border-gray-100 px-3 py-[clamp(0.28rem,0.65vh,0.5rem)]">
+              <div className="mb-[clamp(0.18rem,0.45vh,0.35rem)] grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div className="flex min-w-0 items-baseline gap-2">
                   <div className="truncate text-[12px] font-black text-gray-800">{market.market}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  <div className="truncate text-[9px] font-bold uppercase tracking-wider text-gray-400">
                     {market.types.length ? market.types.join(' / ') : 'Unclassified'}
                   </div>
                 </div>
                 <span className="rounded-md bg-gray-50 px-2 py-1 text-[10px] font-black text-gray-500 ring-1 ring-gray-100">{market.count}</span>
               </div>
-              <div className="h-[clamp(0.45rem,0.8vh,0.625rem)] rounded-full bg-gray-100">
+              <div className="h-[clamp(0.3rem,0.72vh,0.48rem)] shrink-0 rounded-full bg-gray-100">
                 <div
                   className="h-full rounded-full"
                   style={{
                     width: `${pct}%`,
-                    background: index === 0 ? CRIMSON : index === 1 ? '#10b981' : index === 2 ? '#3b82f6' : '#f59e0b',
+                    background: color,
                   }}
                 />
               </div>
@@ -667,17 +703,17 @@ function MarketDistributionCard({ markets, className = '' }) {
 
 function TodayDashboard({ total, donutData, trendingUpdates, categoryMomentum, marketDistribution }) {
   return (
-    <div className="grid min-h-0 grid-cols-1 gap-4 overflow-y-auto pb-2 xl:h-full xl:grid-cols-2 xl:overflow-hidden xl:pb-0">
-      <div className="grid min-h-0 grid-cols-1 gap-[clamp(0.5rem,1.2vh,0.75rem)] xl:h-full xl:grid-rows-[minmax(160px,0.82fr)_minmax(170px,1fr)_minmax(170px,1fr)]">
-        <DonutChart data={donutData} className="min-h-[220px] xl:h-full xl:min-h-0" />
-        <MarketDistributionCard markets={marketDistribution} className="min-h-[210px] xl:h-full xl:min-h-0 xl:flex xl:flex-col" />
-        <CategoryMomentumCard categories={categoryMomentum} className="min-h-[210px] xl:h-full xl:min-h-0 xl:flex xl:flex-col" />
+    <div className="grid min-h-0 grid-cols-1 gap-4 overflow-y-auto pb-2 lg:h-full lg:grid-cols-2 lg:overflow-hidden lg:pb-2">
+      <div className="grid min-h-0 grid-cols-1 gap-[clamp(0.45rem,1vh,0.75rem)] lg:h-full lg:grid-rows-[minmax(140px,0.78fr)_minmax(150px,1fr)_minmax(150px,1fr)]">
+        <DonutChart data={donutData} className="min-h-[220px] lg:h-full lg:min-h-0" />
+        <MarketDistributionCard markets={marketDistribution} className="min-h-[210px] lg:h-full lg:min-h-0 lg:flex lg:flex-col" />
+        <CategoryMomentumCard categories={categoryMomentum} className="min-h-[210px] lg:h-full lg:min-h-0 lg:flex lg:flex-col" />
       </div>
 
-      <TrendingUpdatesCard items={trendingUpdates} className="min-h-[480px] xl:h-full xl:min-h-0 xl:flex xl:flex-col" />
+      <TrendingUpdatesCard items={trendingUpdates} className="min-h-[480px] lg:h-full lg:min-h-0 lg:flex lg:flex-col" />
 
       {!total && (
-        <section className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-[12px] font-semibold text-gray-400 shadow-card xl:col-span-2">
+        <section className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-[12px] font-semibold text-gray-400 shadow-card lg:col-span-2">
           No live signals found for today. Once the fetch job indexes fresh articles, these charts will update automatically.
         </section>
       )}
